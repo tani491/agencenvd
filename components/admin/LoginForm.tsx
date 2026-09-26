@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { createBrowserClient } from "@supabase/ssr";
 import { Loader2, LockKeyhole, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { createClient } from "@/lib/supabase/client";
 
 type SupabasePasswordAuth = {
   signInWithPassword: (credentials: {
@@ -20,9 +20,7 @@ export function LoginForm({ initialError }: { initialError?: string }) {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState(
-    initialError === "configuration"
-      ? "Configuration Supabase manquante. Renseignez .env.local puis redémarrez Next.js."
-      : initialError === "unauthorized"
+    initialError === "unauthorized"
       ? "Connectez-vous avec un compte administrateur NVD."
       : ""
   );
@@ -33,7 +31,16 @@ export function LoginForm({ initialError }: { initialError?: string }) {
     setMessage("");
 
     try {
-      const supabase = createClient();
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseAnonKey =
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+      if (!supabaseUrl || !supabaseAnonKey) {
+        throw new Error("Supabase client unavailable");
+      }
+
+      const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey);
       const auth = supabase.auth as unknown as SupabasePasswordAuth;
       const { error } = await auth.signInWithPassword({
         email,
@@ -47,9 +54,7 @@ export function LoginForm({ initialError }: { initialError?: string }) {
       }
     } catch (error) {
       console.error(error);
-      setMessage(
-        "Configuration Supabase manquante. Renseignez .env.local puis redémarrez Next.js."
-      );
+      setMessage("Impossible de vérifier les identifiants pour le moment.");
       setIsLoading(false);
       return;
     }
