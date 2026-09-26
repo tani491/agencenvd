@@ -10,11 +10,10 @@ import {
 import { NVD_CONTACT } from "@/lib/nvd";
 
 const footerLinks = [
-  { label: "Landing Page", href: "/", subtle: false },
-  { label: "Avant / Après", href: "/avant-apres", subtle: false },
-  { label: "Devis Gratuit", href: "/#devis", subtle: false },
-  { label: "Contact", href: "/#contact", subtle: false },
-  { label: "Espace équipe", href: "/admin/login", subtle: true }
+  { label: "Accueil", href: "/", external: false },
+  { label: "Nos Réalisations", href: "/avant-apres", external: false },
+  { label: "Devis WhatsApp", href: NVD_CONTACT.whatsappHref, external: true },
+  { label: "Mentions Légales", href: "/mentions-legales", external: false }
 ] as const;
 
 const socialLinks = [
@@ -92,19 +91,29 @@ export function Footer() {
             Navigation
           </h2>
           <div className="mt-5 grid gap-3 text-sm font-semibold text-white/84">
-            {footerLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                prefetch={link.href.startsWith("/admin") ? false : undefined}
-                className={`inline-flex items-center gap-2 transition hover:text-nvd-cyan ${
-                  link.subtle ? "text-white/55" : ""
-                }`}
-              >
-                {link.label}
-                <ArrowUpRight className="h-3.5 w-3.5" />
-              </Link>
-            ))}
+            {footerLinks.map((link) =>
+              link.external ? (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 transition hover:text-nvd-cyan"
+                >
+                  {link.label}
+                  <ArrowUpRight className="h-3.5 w-3.5" />
+                </a>
+              ) : (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="inline-flex items-center gap-2 transition hover:text-nvd-cyan"
+                >
+                  {link.label}
+                  <ArrowUpRight className="h-3.5 w-3.5" />
+                </Link>
+              )
+            )}
           </div>
         </nav>
 
