@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAdminAuthState } from "@/lib/admin/auth";
+import { getDefaultSiteConfig } from "@/lib/admin/data";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getValidationIssues } from "@/lib/validations/errors";
 
@@ -16,16 +17,6 @@ const siteConfigSchema = z.object({
     .union([z.string().url().startsWith("https://"), z.literal("")])
     .optional()
 });
-
-const fallbackConfig = {
-  id: 1,
-  logo_url: "/logo-nvd.svg",
-  phone_primary: "778609143",
-  phone_secondary: "788605633",
-  whatsapp_number: "778609143",
-  hero_title: "Le spécialiste du nettoyage à vapeur & désinfection écologique au Sénégal.",
-  hero_background_url: null
-};
 
 export async function GET() {
   const admin = await getAdminAuthState();
@@ -44,7 +35,7 @@ export async function GET() {
 
     if (error || !data) {
       return NextResponse.json({
-        config: fallbackConfig,
+        config: getDefaultSiteConfig(),
         warning:
           "Configuration Supabase indisponible. Les valeurs par défaut sont utilisées."
       });
@@ -52,7 +43,7 @@ export async function GET() {
 
     return NextResponse.json({
       config: {
-        ...fallbackConfig,
+        ...getDefaultSiteConfig(),
         ...data
       }
     });
@@ -60,7 +51,7 @@ export async function GET() {
     console.warn("Unable to read site config", error);
 
     return NextResponse.json({
-      config: fallbackConfig,
+      config: getDefaultSiteConfig(),
       warning:
         "Configuration Supabase indisponible. Les valeurs par défaut sont utilisées."
     });

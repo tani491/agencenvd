@@ -1,13 +1,22 @@
 import { MediaManager } from "@/components/admin/MediaManager";
-import { getAdminPortfolioItems, getAdminSiteConfig } from "@/lib/admin/data";
+import {
+  getAdminPortfolioItems,
+  getAdminSiteConfig,
+  getDefaultSiteConfig
+} from "@/lib/admin/data";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminMediaPage() {
-  const [items, config] = await Promise.all([
+  const [itemsResult, configResult] = await Promise.allSettled([
     getAdminPortfolioItems(),
     getAdminSiteConfig()
   ]);
+  const items = itemsResult.status === "fulfilled" ? itemsResult.value : [];
+  const config =
+    configResult.status === "fulfilled"
+      ? configResult.value
+      : getDefaultSiteConfig();
 
   return (
     <div className="grid gap-6">

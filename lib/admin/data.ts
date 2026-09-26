@@ -60,49 +60,86 @@ export type AnalyticsSummary = {
   statusData: Array<{ status: string; value: number }>;
 };
 
+export function getDefaultSiteConfig(): SiteConfig {
+  return {
+    id: 1,
+    logo_url: "/logo-nvd.svg",
+    phone_primary: "778609143",
+    phone_secondary: "788605633",
+    whatsapp_number: "778609143",
+    hero_title:
+      "Le spécialiste du nettoyage à vapeur & désinfection écologique au Sénégal.",
+    hero_background_url: null
+  };
+}
+
 export async function getAdminQuotes() {
-  const supabase = getSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("quotes")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(500);
+  try {
+    const supabase = getSupabaseAdminClient();
+    const { data, error } = await supabase
+      .from("quotes")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(500);
 
-  if (error) {
-    throw new Error(error.message);
+    if (error) {
+      console.warn("Unable to load admin quotes, using empty fallback", error.message);
+      return [];
+    }
+
+    return (data ?? []).map(normalizeQuoteRow);
+  } catch (error) {
+    console.warn("Admin quotes unavailable, using empty fallback", error);
+    return [];
   }
-
-  return (data ?? []) as QuoteRow[];
 }
 
 export async function getAdminPortfolioItems() {
-  const supabase = getSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("portfolio_items")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(200);
+  try {
+    const supabase = getSupabaseAdminClient();
+    const { data, error } = await supabase
+      .from("portfolio_items")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(200);
 
-  if (error) {
-    throw new Error(error.message);
+    if (error) {
+      console.warn(
+        "Unable to load portfolio items, using empty fallback",
+        error.message
+      );
+      return [];
+    }
+
+    return (data ?? []).map(normalizePortfolioItem);
+  } catch (error) {
+    console.warn("Portfolio items unavailable, using empty fallback", error);
+    return [];
   }
-
-  return (data ?? []) as PortfolioItem[];
 }
 
 export async function getAdminSiteConfig() {
-  const supabase = getSupabaseAdminClient();
-  const { data, error } = await supabase
-    .from("site_config")
-    .select("*")
-    .eq("id", 1)
-    .single();
+  try {
+    const supabase = getSupabaseAdminClient();
+    const { data, error } = await supabase
+      .from("site_config")
+      .select("*")
+      .limit(1)
+      .maybeSingle();
 
-  if (error) {
-    throw new Error(error.message);
+    if (error) {
+      console.warn(
+        "Unable to load site_config, using default fallback",
+        error.message
+      );
+      return getDefaultSiteConfig();
+    }
+
+    return normalizeSiteConfig(data);
+  } catch (error) {
+    console.warn("Site config unavailable, using default fallback", error);
+    return getDefaultSiteConfig();
   }
-
-  return data as SiteConfig;
 }
 
 export async function getAudienceSummary() {
@@ -215,4 +252,65 @@ function normalizeSource(source?: string | null) {
 
 function normalizeLocation(location: string) {
   return location.trim().replace(/\s+/g, " ");
+}
+
+function normalizeQuoteRow(row: Partial<QuoteRow>): QuoteRow {
+  return {
+    id: row.id ?? crypto.randomUUID(),
+    created_at: row.created_at ?? new Date(0).toISOString(),
+    full_name: row.full_name ?? "Client NVD",
+    phone: row.phone ?? "",
+    location: row.location ?? "",
+    services: Array.isArray(row.services) ? row.services : [],
+    details: row.details ?? null,
+    furniture_photo_url: row.furniture_photo_url ?? null,
+    preferred_date: row.preferred_date ?? null,
+    status: isQuoteStatus(row.status) ? row.status : "pending",
+    utm_source: row.utm_source ?? "direct",
+    utm_medium: row.utm_medium ?? null,
+    utm_campaign: row.utm_campaign ?? null,
+    referrer_url: row.referrer_url ?? null
+  };
+}
+
+function normalizePortfolioItem(row: Partial<PortfolioItem>): PortfolioItem {
+  return {
+    id: row.id ?? crypto.randomUUID(),
+    created_at: row.created_at ?? new Date(0).toISOString(),
+    title: row.title ?? "Réalisation NVD",
+    category: row.category ?? "Portfolio",
+    before_media_url: row.before_media_url ?? "",
+    after_media_url: row.after_media_url ?? "",
+    media_type: row.media_type === "video" ? "video" : "image",
+    is_published: row.is_published ?? false
+  };
+}
+
+function normalizeSiteConfig(row?: Partial<SiteConfig> | null): SiteConfig {
+  const fallback = getDefaultSiteConfig();
+
+  if (!row) {
+    return fallback;
+  }
+
+  return {
+    id: typeof row.id === "number" ? row.id : fallback.id,
+    logo_url: row.logo_url || fallback.logo_url,
+    phone_primary: row.phone_primary || fallback.phone_primary,
+    phone_secondary: row.phone_secondary || fallback.phone_secondary,
+    whatsapp_number: row.whatsapp_number || fallback.whatsapp_number,
+    hero_title: row.hero_title ?? fallback.hero_title,
+    hero_background_url: row.hero_background_url ?? fallback.hero_background_url
+  };
+}
+
+function isQuoteStatus(value: unknown): value is QuoteStatus {
+  return (
+    value === "pending" ||
+    value === "contacted" ||
+    value === "quoted" ||
+    value === "scheduled" ||
+    value === "completed" ||
+    value === "cancelled"
+  );
 }
