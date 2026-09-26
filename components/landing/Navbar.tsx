@@ -1,7 +1,12 @@
 import Link from "next/link";
 import { Phone, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { NAV_LINKS, NVD_CONTACT } from "@/lib/nvd";
+import { NAV_LINKS } from "@/lib/nvd";
+import {
+  buildTelHref,
+  buildWhatsappHref,
+  getPublicSiteConfig
+} from "@/lib/site-config";
 
 function NvdLogo() {
   return (
@@ -23,7 +28,13 @@ function NvdLogo() {
   );
 }
 
-export function Navbar() {
+export async function Navbar() {
+  const config = await getPublicSiteConfig();
+  const whatsappHref = buildWhatsappHref(
+    config.whatsapp_number,
+    "Bonjour NVD, je souhaite un devis"
+  );
+
   return (
     <header className="sticky top-0 z-40 border-b border-white/60 bg-white/88 backdrop-blur-xl">
       <div className="section-shell flex h-20 items-center justify-between gap-4">
@@ -43,14 +54,14 @@ export function Navbar() {
 
         <div className="hidden items-center gap-2 sm:flex">
           <Button asChild variant="outline" size="sm">
-            <a href={NVD_CONTACT.phonePrimaryHref}>
+            <a href={buildTelHref(config.phone_primary)}>
               <Phone />
               Appeler
             </a>
           </Button>
           <Button asChild variant="whatsapp" size="sm">
             <a
-              href={NVD_CONTACT.whatsappHref}
+              href={whatsappHref}
               target="_blank"
               rel="noreferrer"
             >

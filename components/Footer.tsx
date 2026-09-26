@@ -8,31 +8,41 @@ import {
   Phone
 } from "lucide-react";
 import { NVD_CONTACT } from "@/lib/nvd";
+import {
+  buildTelHref,
+  buildWhatsappHref,
+  formatSenegalPhone,
+  getPublicSiteConfig
+} from "@/lib/site-config";
 
-const footerLinks = [
-  { label: "Accueil", href: "/", external: false },
-  { label: "Nos Réalisations", href: "/avant-apres", external: false },
-  { label: "Devis WhatsApp", href: NVD_CONTACT.whatsappHref, external: true },
-  { label: "Mentions Légales", href: "/mentions-legales", external: false }
-] as const;
+function getFooterLinks(whatsappHref: string) {
+  return [
+    { label: "Accueil", href: "/", external: false },
+    { label: "Nos Réalisations", href: "/avant-apres", external: false },
+    { label: "Devis WhatsApp", href: whatsappHref, external: true },
+    { label: "Mentions Légales", href: "/mentions-legales", external: false }
+  ] as const;
+}
 
-const socialLinks = [
-  {
-    label: "TikTok",
-    href: NVD_CONTACT.tiktokHref,
-    icon: Music2
-  },
-  {
-    label: "Instagram",
-    href: NVD_CONTACT.instagramHref,
-    icon: Instagram
-  },
-  {
-    label: "WhatsApp",
-    href: NVD_CONTACT.whatsappHref,
-    icon: MessageCircle
-  }
-] as const;
+function getSocialLinks(whatsappHref: string) {
+  return [
+    {
+      label: "TikTok",
+      href: NVD_CONTACT.tiktokHref,
+      icon: Music2
+    },
+    {
+      label: "Instagram",
+      href: NVD_CONTACT.instagramHref,
+      icon: Instagram
+    },
+    {
+      label: "WhatsApp",
+      href: whatsappHref,
+      icon: MessageCircle
+    }
+  ] as const;
+}
 
 function FooterLogo() {
   return (
@@ -54,7 +64,17 @@ function FooterLogo() {
   );
 }
 
-export function Footer() {
+export async function Footer() {
+  const config = await getPublicSiteConfig();
+  const whatsappHref = buildWhatsappHref(
+    config.whatsapp_number,
+    "Bonjour NVD, je souhaite un devis"
+  );
+  const footerLinks = getFooterLinks(whatsappHref);
+  const socialLinks = getSocialLinks(whatsappHref);
+  const primaryPhoneDisplay = formatSenegalPhone(config.phone_primary);
+  const secondaryPhoneDisplay = formatSenegalPhone(config.phone_secondary);
+
   return (
     <footer className="bg-nvd-blue-dark pb-24 text-white md:pb-0">
       <div className="section-shell grid gap-10 py-12 sm:py-14 lg:grid-cols-[1.15fr_0.75fr_1fr]">
@@ -123,13 +143,12 @@ export function Footer() {
           </h2>
           <div className="mt-5 grid gap-4 text-sm leading-6 text-white/84">
             <a
-              href={NVD_CONTACT.phonePrimaryHref}
+              href={buildTelHref(config.phone_primary)}
               className="flex items-start gap-3 transition hover:text-nvd-cyan"
             >
               <Phone className="mt-0.5 h-4 w-4 shrink-0 text-nvd-cyan" />
               <span>
-                {NVD_CONTACT.phonePrimaryInternationalDisplay} /{" "}
-                {NVD_CONTACT.phoneMobileInternationalDisplay}
+                {primaryPhoneDisplay} / {secondaryPhoneDisplay}
               </span>
             </a>
             <p className="flex items-start gap-3">

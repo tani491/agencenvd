@@ -2,8 +2,22 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { BeforeAfterComparison } from "@/components/landing/BeforeAfterComparison";
+import { getPublishedPortfolioPage } from "@/lib/portfolio";
 
-export function BeforeAfterSlider() {
+const fallbackComparison = {
+  title: "Canapé textile ravivé",
+  category: "Démonstration vapeur",
+  before_media_url:
+    "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=1400&q=85",
+  after_media_url:
+    "https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=1400&q=85",
+  media_type: "image" as const
+};
+
+export async function BeforeAfterSlider() {
+  const { items } = await getPublishedPortfolioPage(1, 1);
+  const comparison = items[0] ?? fallbackComparison;
+
   return (
     <section id="avant-apres" className="bg-white py-20 sm:py-24">
       <div className="section-shell grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
@@ -23,10 +37,11 @@ export function BeforeAfterSlider() {
         </div>
 
         <BeforeAfterComparison
-          title="Canapé textile ravivé"
-          category="Démonstration vapeur"
-          beforeMediaUrl="https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=1400&q=85"
-          afterMediaUrl="https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=1400&q=85"
+          title={comparison.title}
+          category={comparison.category}
+          beforeMediaUrl={comparison.before_media_url}
+          afterMediaUrl={comparison.after_media_url}
+          mediaType={comparison.media_type}
           priority
         />
       </div>

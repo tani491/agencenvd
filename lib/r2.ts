@@ -63,12 +63,16 @@ function getR2ClientConfig() {
   };
 }
 
-export async function getPresignedUploadUrl(filename: string, contentType: string) {
+export async function getPresignedUploadUrl(
+  filename: string,
+  contentType: string,
+  folder = "quotes"
+) {
   if (!isAllowedR2MimeType(contentType)) {
     throw new Error(`Unsupported R2 upload content type: ${contentType}`);
   }
 
-  const key = buildR2ObjectKey(filename, contentType);
+  const key = buildR2ObjectKey(filename, contentType, folder);
   const cacheControl = "public, max-age=31536000, immutable";
   const expiresIn = 300;
   const command = new PutObjectCommand({
@@ -112,13 +116,22 @@ export async function deleteR2Object(fileKey: string) {
   }));
 }
 
-export function buildR2ObjectKey(fileName: string, fileType: R2AllowedMimeType) {
+export function buildR2ObjectKey(
+  fileName: string,
+  fileType: R2AllowedMimeType,
+  folder = "quotes"
+) {
   const now = new Date();
   const year = now.getUTCFullYear();
   const month = String(now.getUTCMonth() + 1).padStart(2, "0");
   const extension = getSafeExtension(fileName, fileType);
+  const safeFolder = folder
+    .split("/")
+    .map((segment) => segment.toLowerCase().replace(/[^a-z0-9-]/g, "-"))
+    .filter(Boolean)
+    .join("/");
 
-  return `quotes/${year}/${month}/${randomUUID()}.${extension}`;
+  return `${safeFolder || "quotes"}/${year}/${month}/${randomUUID()}.${extension}`;
 }
 
 export function buildPublicR2Url(key: string) {
@@ -134,6 +147,34 @@ export function buildPublicR2Url(key: string) {
 
 export function isAllowedR2MimeType(value: string): value is R2AllowedMimeType {
   return R2_ALLOWED_MIME_TYPES.includes(value as R2AllowedMimeType);
+}
+
+export function getR2ObjectKeyFromPublicUrl(fileUrl: string) {
+  const publicBaseUrl =
+    process.env.NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL ??
+    process.env.CLOUDFLARE_R2_PUBLIC_URL;
+
+  if (!publicBaseUrl) {
+    return null;
+  }
+
+  try {
+    const baseUrl = new URL(publicBaseUrl.replace(/\/$/, ""));
+    const url = new URL(fileUrl);
+
+    if (url.origin !== baseUrl.origin) {
+      return null;
+    }
+
+    const basePath = baseUrl.pathname.replace(/\/$/, "");
+    const path = url.pathname.startsWith(basePath)
+      ? url.pathname.slice(basePath.length)
+      : url.pathname;
+
+    return decodeURIComponent(path.replace(/^\/+/, ""));
+  } catch {
+    return null;
+  }
 }
 
 function getSafeExtension(fileName: string, fileType: R2AllowedMimeType) {

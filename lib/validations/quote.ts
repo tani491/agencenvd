@@ -60,6 +60,7 @@ export const quoteSubmissionSchema = z.object({
     .trim()
     .min(2, "Indiquez votre quartier ou région.")
     .max(160, "La localisation est trop longue."),
+  details: z.string().trim().max(1000, "Le détail est trop long.").optional(),
   services: z
     .array(quoteServiceSchema)
     .min(1, "Sélectionnez au moins un service.")

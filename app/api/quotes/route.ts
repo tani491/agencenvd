@@ -22,6 +22,7 @@ export async function POST(request: Request) {
         full_name: payload.fullName.trim(),
         phone: normalizeSenegalPhone(payload.phone),
         location: payload.location.trim(),
+        details: emptyToNull(payload.details),
         services: payload.services,
         furniture_photo_url: emptyToNull(payload.furniturePhotoUrl),
         preferred_date: emptyToNull(payload.preferredDate),

@@ -20,13 +20,24 @@ const chartColors = ["#0072CE", "#00C4FF", "#10B981", "#0F2C59", "#F59E0B"];
 export function AnalyticsCharts({ summary }: { summary: AnalyticsSummary }) {
   return (
     <div className="grid gap-5">
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <MetricCard
+          label="Visiteurs uniques"
+          value={summary.uniqueVisitors.toString()}
+        />
+        <MetricCard
+          label="Vues de pages"
+          value={summary.totalPageViews.toString()}
+        />
         <MetricCard label="Demandes reçues" value={summary.totalQuotes.toString()} />
         <MetricCard
-          label="Demandes converties"
-          value={summary.convertedQuotes.toString()}
+          label="Conversion visiteurs"
+          value={`${summary.visitorConversionRate}%`}
         />
-        <MetricCard label="Taux conversion" value={`${summary.conversionRate}%`} />
+        <MetricCard
+          label="Devis transformés"
+          value={`${summary.quoteConversionRate}%`}
+        />
       </div>
 
       <div className="grid gap-5 xl:grid-cols-2">

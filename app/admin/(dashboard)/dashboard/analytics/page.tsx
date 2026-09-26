@@ -1,11 +1,18 @@
 import { AnalyticsCharts } from "@/components/admin/AnalyticsCharts";
-import { buildAnalyticsSummary, getAdminQuotes } from "@/lib/admin/data";
+import {
+  buildAnalyticsSummary,
+  getAdminQuotes,
+  getAudienceSummary
+} from "@/lib/admin/data";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminAnalyticsPage() {
-  const quotes = await getAdminQuotes();
-  const summary = buildAnalyticsSummary(quotes);
+  const [quotes, audience] = await Promise.all([
+    getAdminQuotes(),
+    getAudienceSummary()
+  ]);
+  const summary = buildAnalyticsSummary(quotes, audience);
 
   return (
     <div className="grid gap-6">

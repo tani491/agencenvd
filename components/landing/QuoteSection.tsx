@@ -2,9 +2,20 @@ import { MessageCircle, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { QuoteForm } from "@/components/landing/QuoteForm";
-import { NVD_CONTACT } from "@/lib/nvd";
+import {
+  buildTelHref,
+  buildWhatsappHref,
+  formatSenegalPhone,
+  getPublicSiteConfig
+} from "@/lib/site-config";
 
-export function QuoteSection() {
+export async function QuoteSection() {
+  const config = await getPublicSiteConfig();
+  const whatsappHref = buildWhatsappHref(
+    config.whatsapp_number,
+    "Bonjour NVD, je souhaite un devis"
+  );
+
   return (
     <section id="devis" className="bg-nvd-wave py-20 text-white sm:py-24">
       <div className="section-shell grid gap-10 lg:grid-cols-[0.95fr_1.05fr] lg:items-start">
@@ -26,19 +37,19 @@ export function QuoteSection() {
               size="lg"
               className="bg-white text-nvd-blue-dark hover:bg-cyan-50"
             >
-              <a href={NVD_CONTACT.phonePrimaryHref}>
+              <a href={buildTelHref(config.phone_primary)}>
                 <Phone />
-                {NVD_CONTACT.phonePrimaryDisplay}
+                {formatSenegalPhone(config.phone_primary)}
               </a>
             </Button>
             <Button asChild variant="whatsapp" size="lg">
               <a
-                href={NVD_CONTACT.whatsappHref}
+                href={whatsappHref}
                 target="_blank"
                 rel="noreferrer"
               >
                 <MessageCircle />
-                WhatsApp {NVD_CONTACT.whatsappDisplay}
+                WhatsApp {formatSenegalPhone(config.whatsapp_number)}
               </a>
             </Button>
           </div>
@@ -49,7 +60,7 @@ export function QuoteSection() {
             <CardTitle>Demande de devis intelligent</CardTitle>
           </CardHeader>
           <CardContent>
-            <QuoteForm />
+            <QuoteForm whatsappNumber={config.whatsapp_number} />
           </CardContent>
         </Card>
       </div>

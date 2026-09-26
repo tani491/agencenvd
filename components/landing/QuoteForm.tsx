@@ -15,8 +15,8 @@ import {
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { NVD_CONTACT } from "@/lib/nvd";
 import {
   QUOTE_SERVICE_OPTIONS,
   type QuoteServiceValue,
@@ -45,7 +45,7 @@ type ApiErrorResponse = {
   error?: string;
 };
 
-export function QuoteForm() {
+export function QuoteForm({ whatsappNumber }: { whatsappNumber: string }) {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadName, setUploadName] = useState("");
@@ -69,6 +69,7 @@ export function QuoteForm() {
       fullName: "",
       phone: "",
       location: "",
+      details: "",
       services: [],
       furniturePhotoUrl: "",
       preferredDate: "",
@@ -189,13 +190,18 @@ export function QuoteForm() {
     });
 
     if (redirectToWhatsapp) {
-      window.open(buildWhatsappSummaryUrl(payload), "_blank", "noopener,noreferrer");
+      window.open(
+        buildWhatsappSummaryUrl(payload, whatsappNumber),
+        "_blank",
+        "noopener,noreferrer"
+      );
     }
 
     reset({
       fullName: "",
       phone: "",
       location: "",
+      details: "",
       services: [],
       furniturePhotoUrl: "",
       preferredDate: "",
@@ -251,6 +257,17 @@ export function QuoteForm() {
         </span>
         {errors.location && (
           <span className="text-xs text-destructive">{errors.location.message}</span>
+        )}
+      </label>
+
+      <label className="grid gap-2 text-sm font-semibold">
+        Détail de la demande
+        <Textarea
+          placeholder="Décrivez les taches, le nombre de places, la matière ou toute précision utile."
+          {...register("details")}
+        />
+        {errors.details && (
+          <span className="text-xs text-destructive">{errors.details.message}</span>
         )}
       </label>
 
@@ -453,15 +470,19 @@ function getTrackingValues() {
   };
 }
 
-function buildWhatsappSummaryUrl(values: QuoteSubmissionPayload) {
+function buildWhatsappSummaryUrl(
+  values: QuoteSubmissionPayload,
+  whatsappNumber: string
+) {
   const serviceLabels = values.services.map(getQuoteServiceLabel).join(", ");
-  const whatsappBaseUrl = NVD_CONTACT.whatsappHref.split("?")[0];
+  const whatsappBaseUrl = `https://wa.me/${toWhatsappDigits(whatsappNumber)}`;
   const message = [
     "Bonjour NVD, je souhaite un devis.",
     `Nom: ${values.fullName}`,
     `Téléphone: ${values.phone}`,
-    `Zone: ${values.location}`,
+    `Adresse / zone à Dakar: ${values.location}`,
     `Services: ${serviceLabels}`,
+    values.details ? `Détail: ${values.details}` : "",
     values.preferredDate ? `Date souhaitée: ${values.preferredDate}` : "",
     values.furniturePhotoUrl ? `Média: ${values.furniturePhotoUrl}` : ""
   ]
@@ -469,4 +490,18 @@ function buildWhatsappSummaryUrl(values: QuoteSubmissionPayload) {
     .join("\n");
 
   return `${whatsappBaseUrl}?text=${encodeURIComponent(message)}`;
+}
+
+function toWhatsappDigits(number: string) {
+  const digits = number.replace(/\D/g, "");
+
+  if (digits.startsWith("00221")) {
+    return digits.slice(2);
+  }
+
+  if (digits.startsWith("221")) {
+    return digits;
+  }
+
+  return `221${digits}`;
 }

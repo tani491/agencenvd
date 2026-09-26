@@ -11,7 +11,10 @@ const siteConfigSchema = z.object({
   phonePrimary: z.string().trim().min(7).max(30),
   phoneSecondary: z.string().trim().min(7).max(30),
   whatsappNumber: z.string().trim().min(7).max(30),
-  heroTitle: z.string().trim().max(220).optional()
+  heroTitle: z.string().trim().max(220).optional(),
+  heroBackgroundUrl: z
+    .union([z.string().url().startsWith("https://"), z.literal("")])
+    .optional()
 });
 
 export async function PATCH(request: Request) {
@@ -31,7 +34,8 @@ export async function PATCH(request: Request) {
         phone_primary: body.phonePrimary,
         phone_secondary: body.phoneSecondary,
         whatsapp_number: body.whatsappNumber,
-        hero_title: body.heroTitle ?? null
+        hero_title: body.heroTitle ?? null,
+        hero_background_url: body.heroBackgroundUrl || null
       })
       .eq("id", 1)
       .select("*")

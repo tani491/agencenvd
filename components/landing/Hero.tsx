@@ -2,7 +2,7 @@ import Image from "next/image";
 import { ArrowRight, MessageCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { NVD_CONTACT } from "@/lib/nvd";
+import { buildWhatsappHref, getPublicSiteConfig } from "@/lib/site-config";
 
 const trustBadges = [
   "🌿 100% Écologique",
@@ -10,14 +10,20 @@ const trustBadges = [
   "✨ Satisfaction Garantie"
 ] as const;
 
-export function Hero() {
+export async function Hero() {
+  const config = await getPublicSiteConfig();
+  const whatsappHref = buildWhatsappHref(
+    config.whatsapp_number,
+    "Bonjour NVD, je souhaite un devis"
+  );
+
   return (
     <section
       id="accueil"
       className="relative isolate min-h-[calc(100svh-5rem)] overflow-hidden"
     >
       <Image
-        src="https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=1800&q=85"
+        src={config.hero_background_url}
         alt="Technicien professionnel préparant un nettoyage vapeur"
         fill
         priority
@@ -33,8 +39,7 @@ export function Hero() {
             Nettoyage vapeur professionnel au Sénégal
           </Badge>
           <h1 className="max-w-3xl text-4xl font-black leading-tight tracking-normal sm:text-5xl lg:text-6xl">
-            Le spécialiste du nettoyage à vapeur & désinfection écologique au
-            Sénégal.
+            {config.hero_title}
           </h1>
           <p className="mt-6 max-w-2xl text-lg font-medium leading-8 text-white/88 sm:text-xl">
             Fauteuils, matelas, tapis, véhicules. Élimination des bactéries et
@@ -66,7 +71,7 @@ export function Hero() {
               className="bg-white text-nvd-blue-dark hover:bg-cyan-50"
             >
               <a
-                href={NVD_CONTACT.whatsappHref}
+                href={whatsappHref}
                 target="_blank"
                 rel="noreferrer"
               >

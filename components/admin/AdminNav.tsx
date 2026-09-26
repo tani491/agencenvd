@@ -2,24 +2,33 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, ImagePlus, Inbox } from "lucide-react";
+import { ImagePlus, Inbox, LayoutDashboard, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const adminLinks = [
   {
+    href: "/admin/dashboard",
+    label: "Vue d'ensemble & Analytics",
+    icon: LayoutDashboard,
+    exact: true
+  },
+  {
     href: "/admin/dashboard/quotes",
-    label: "Devis",
-    icon: Inbox
+    label: "Gestion des Devis",
+    icon: Inbox,
+    exact: false
   },
   {
-    href: "/admin/dashboard/analytics",
-    label: "Analytics",
-    icon: BarChart3
+    href: "/admin/dashboard/media",
+    label: "CMS Médias & Hero",
+    icon: ImagePlus,
+    exact: false
   },
   {
-    href: "/admin/dashboard/cms",
-    label: "CMS médias",
-    icon: ImagePlus
+    href: "/admin/dashboard/settings",
+    label: "Paramètres & Sécurité",
+    icon: Settings,
+    exact: false
   }
 ] as const;
 
@@ -30,7 +39,7 @@ export function AdminNav() {
     <nav className="grid gap-1">
       {adminLinks.map((link) => {
         const Icon = link.icon;
-        const active = pathname.startsWith(link.href);
+        const active = link.exact ? pathname === link.href : pathname.startsWith(link.href);
 
         return (
           <Link

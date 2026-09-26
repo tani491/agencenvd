@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAdminAuthState } from "@/lib/admin/auth";
+import { deleteR2Object, getR2ObjectKeyFromPublicUrl } from "@/lib/r2";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getValidationIssues } from "@/lib/validations/errors";
 
@@ -62,6 +63,53 @@ export async function PATCH(
         { status: 400 }
       );
     }
+
+    return NextResponse.json({ error: "Erreur serveur." }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const admin = await getAdminAuthState();
+
+  if (!admin.isAdmin) {
+    return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
+  }
+
+  const { id } = await params;
+
+  try {
+    const supabase = getSupabaseAdminClient();
+    const { data: item, error: readError } = await supabase
+      .from("portfolio_items")
+      .select("before_media_url, after_media_url")
+      .eq("id", id)
+      .single();
+
+    if (readError) {
+      return NextResponse.json({ error: readError.message }, { status: 500 });
+    }
+
+    const { error } = await supabase.from("portfolio_items").delete().eq("id", id);
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    const mediaKeys = [
+      getR2ObjectKeyFromPublicUrl(item.before_media_url),
+      getR2ObjectKeyFromPublicUrl(item.after_media_url)
+    ].filter(Boolean);
+
+    await Promise.allSettled(
+      mediaKeys.map((key) => deleteR2Object(key as string))
+    );
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error("Portfolio delete error", error);
 
     return NextResponse.json({ error: "Erreur serveur." }, { status: 500 });
   }

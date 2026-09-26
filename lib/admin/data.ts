@@ -16,6 +16,7 @@ export type QuoteRow = {
   phone: string;
   location: string;
   services: string[];
+  details: string | null;
   furniture_photo_url: string | null;
   preferred_date: string | null;
   status: QuoteStatus;
@@ -43,12 +44,16 @@ export type SiteConfig = {
   phone_secondary: string;
   whatsapp_number: string;
   hero_title: string | null;
+  hero_background_url: string | null;
 };
 
 export type AnalyticsSummary = {
+  totalPageViews: number;
+  uniqueVisitors: number;
   totalQuotes: number;
   convertedQuotes: number;
-  conversionRate: number;
+  quoteConversionRate: number;
+  visitorConversionRate: number;
   sourceData: Array<{ name: string; value: number }>;
   locationData: Array<{ location: string; demandes: number }>;
   serviceData: Array<{ service: string; demandes: number }>;
@@ -100,16 +105,63 @@ export async function getAdminSiteConfig() {
   return data as SiteConfig;
 }
 
-export function buildAnalyticsSummary(quotes: QuoteRow[]): AnalyticsSummary {
+export async function getAudienceSummary() {
+  try {
+    const supabase = getSupabaseAdminClient();
+    const { data, error, count } = await supabase
+      .from("analytics_events")
+      .select("visitor_id", { count: "exact" })
+      .limit(10000);
+
+    if (error) {
+      console.warn("Unable to load analytics events", error.message);
+
+      return {
+        totalPageViews: 0,
+        uniqueVisitors: 0
+      };
+    }
+
+    return {
+      totalPageViews: count ?? data?.length ?? 0,
+      uniqueVisitors: new Set(
+        (data ?? [])
+          .map((event: { visitor_id?: string | null }) => event.visitor_id)
+          .filter(Boolean)
+      ).size
+    };
+  } catch (error) {
+    console.warn("Analytics summary unavailable", error);
+
+    return {
+      totalPageViews: 0,
+      uniqueVisitors: 0
+    };
+  }
+}
+
+export function buildAnalyticsSummary(
+  quotes: QuoteRow[],
+  audience: { totalPageViews: number; uniqueVisitors: number } = {
+    totalPageViews: 0,
+    uniqueVisitors: 0
+  }
+): AnalyticsSummary {
   const convertedQuotes = quotes.filter((quote) =>
     ["scheduled", "completed"].includes(quote.status)
   ).length;
 
   return {
+    totalPageViews: audience.totalPageViews,
+    uniqueVisitors: audience.uniqueVisitors,
     totalQuotes: quotes.length,
     convertedQuotes,
-    conversionRate:
+    quoteConversionRate:
       quotes.length === 0 ? 0 : Math.round((convertedQuotes / quotes.length) * 100),
+    visitorConversionRate:
+      audience.uniqueVisitors === 0
+        ? 0
+        : Math.round((quotes.length / audience.uniqueVisitors) * 100),
     sourceData: toChartEntries(countBy(quotes, (quote) => normalizeSource(quote.utm_source))),
     locationData: toChartEntries(countBy(quotes, (quote) => normalizeLocation(quote.location)))
       .slice(0, 8)

@@ -1,40 +1,28 @@
 "use client";
 
 import { motion } from "framer-motion";
-import {
-  Armchair,
-  BedDouble,
-  Building2,
-  CarFront,
-  Sparkles
-} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const services = [
   {
     title: "Nettoyage & Désinfection Fauteuils & Canapés",
-    description: "Tissu, cuir, velours.",
-    icon: Armchair
+    description: "Tissu, cuir, velours."
   },
   {
     title: "Traitement Anti-acariens & Nettoyage Matelas",
-    description: "Vapeur haute température, odeurs et allergènes ciblés.",
-    icon: BedDouble
+    description: "Vapeur haute température, odeurs et allergènes ciblés."
   },
   {
     title: "Lavage & Ravivement Tapis & Moquettes",
-    description: "Fibres ravivées, taches traitées, séchage maîtrisé.",
-    icon: Sparkles
+    description: "Fibres ravivées, taches traitées, séchage maîtrisé."
   },
   {
     title: "Detailing & Nettoyage Vapeur Intérieur Auto",
-    description: "Sièges, plafonnier, tapis, coffre et plastiques intérieurs.",
-    icon: CarFront
+    description: "Sièges, plafonnier, tapis, coffre et plastiques intérieurs."
   },
   {
     title: "Désinfection & Nettoyage de Locaux / Bureaux",
-    description: "Espaces professionnels, surfaces de contact et sanitaires.",
-    icon: Building2
+    description: "Espaces professionnels, surfaces de contact et sanitaires."
   }
 ] as const;
 
@@ -56,36 +44,29 @@ export function ServicesGrid() {
         </div>
 
         <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {services.map((service, index) => {
-            const Icon = service.icon;
-
-            return (
-              <motion.div
-                key={service.title}
-                initial={{ opacity: 0, y: 18 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-80px" }}
-                transition={{ duration: 0.4, delay: index * 0.05 }}
-                whileHover={{ y: -6 }}
-              >
-                <Card className="h-full overflow-hidden border-cyan-100 bg-white transition-shadow hover:shadow-nvd-soft">
-                  <CardHeader>
-                    <div className="mb-5 grid h-12 w-12 place-items-center rounded-lg bg-nvd-blue-primary text-white">
-                      <Icon className="h-6 w-6" />
-                    </div>
-                    <CardTitle className="text-xl leading-7 text-nvd-blue-dark">
-                      {service.title}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm leading-6 text-muted-foreground">
-                      {service.description}
-                    </p>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            );
-          })}
+          {services.map((service, index) => (
+            <motion.div
+              key={service.title}
+              initial={{ opacity: 0, y: 18 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-80px" }}
+              transition={{ duration: 0.4, delay: index * 0.05 }}
+              whileHover={{ y: -6 }}
+            >
+              <Card className="h-full overflow-hidden border-cyan-100 bg-white transition-shadow hover:shadow-nvd-soft">
+                <CardHeader>
+                  <CardTitle className="text-xl leading-7 text-nvd-blue-dark">
+                    {service.title}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm leading-6 text-muted-foreground">
+                    {service.description}
+                  </p>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
         </div>
       </div>
     </section>

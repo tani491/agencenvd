@@ -66,7 +66,6 @@ export function LoginForm({ initialError }: { initialError?: string }) {
             autoComplete="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            placeholder="admin@nvd.sn"
             required
           />
         </span>
@@ -82,7 +81,6 @@ export function LoginForm({ initialError }: { initialError?: string }) {
             autoComplete="current-password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            placeholder="••••••••"
             required
           />
         </span>

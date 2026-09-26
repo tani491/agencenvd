@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { Footer } from "@/components/Footer";
+import { PageViewTracker } from "@/components/analytics/PageViewTracker";
 import { FloatingActionBar } from "@/components/landing/FloatingActionBar";
 import { Navbar } from "@/components/landing/Navbar";
 import { BeforeAfterComparison } from "@/components/landing/BeforeAfterComparison";
@@ -42,6 +43,7 @@ export default async function AvantApresPage({ searchParams }: AvantApresPagePro
 
   return (
     <main className="min-h-screen bg-background">
+      <PageViewTracker />
       <Navbar />
 
       <section className="bg-white py-16 sm:py-20">

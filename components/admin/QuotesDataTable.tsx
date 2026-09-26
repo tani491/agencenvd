@@ -84,7 +84,13 @@ export function QuotesDataTable({ quotes }: { quotes: QuoteRow[] }) {
 
     return rows.filter((row) => {
       const matchesStatus = statusFilter === "all" || row.status === statusFilter;
-      const haystack = [row.full_name, row.phone, row.location, row.utm_source ?? ""]
+      const haystack = [
+        row.full_name,
+        row.phone,
+        row.location,
+        row.details ?? "",
+        row.utm_source ?? ""
+      ]
         .join(" ")
         .toLowerCase();
 
@@ -139,12 +145,19 @@ export function QuotesDataTable({ quotes }: { quotes: QuoteRow[] }) {
         accessorKey: "services",
         header: "Services",
         cell: ({ row }: QuoteCellContext) => (
-          <div className="flex max-w-sm flex-wrap gap-1.5">
-            {row.original.services.map((service: string) => (
-              <Badge key={service} variant="secondary">
-                {getServiceLabel(service)}
-              </Badge>
-            ))}
+          <div className="grid max-w-sm gap-2">
+            <div className="flex flex-wrap gap-1.5">
+              {row.original.services.map((service: string) => (
+                <Badge key={service} variant="secondary">
+                  {getServiceLabel(service)}
+                </Badge>
+              ))}
+            </div>
+            {row.original.details && (
+              <p className="line-clamp-2 text-xs leading-5 text-muted-foreground">
+                {row.original.details}
+              </p>
+            )}
           </div>
         )
       },
@@ -325,8 +338,11 @@ function buildWhatsappFollowupUrl(quote: QuoteRow) {
     "Merci pour votre demande de devis NVD.",
     `Nous avons bien reçu votre demande pour: ${services}.`,
     `Zone: ${quote.location}.`,
+    quote.details ? `Détail: ${quote.details}.` : "",
     "Pouvez-vous confirmer votre disponibilité pour une intervention vapeur ?"
-  ].join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   return `https://wa.me/${quote.phone.replace("+", "")}?text=${encodeURIComponent(
     message
