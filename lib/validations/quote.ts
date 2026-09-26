@@ -60,18 +60,10 @@ export const quoteSubmissionSchema = z.object({
     .trim()
     .min(2, "Indiquez votre quartier ou région.")
     .max(160, "La localisation est trop longue."),
-  details: z.string().trim().max(1000, "Le détail est trop long.").optional(),
   services: z
     .array(quoteServiceSchema)
     .min(1, "Sélectionnez au moins un service.")
     .max(5, "Trop de services sélectionnés."),
-  furniturePhotoUrl: z
-    .union([z.string().url("URL média invalide."), z.literal("")])
-    .optional()
-    .refine(
-      (value: string | undefined) => !value || value.startsWith("https://"),
-      "Le média doit utiliser une URL HTTPS."
-    ),
   preferredDate: z
     .union([
       z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date invalide."),
@@ -80,11 +72,7 @@ export const quoteSubmissionSchema = z.object({
     .optional()
     .refine((value: string | undefined) => !value || value >= todayIsoDate(), {
       message: "Choisissez une date à venir."
-    }),
-  utmSource: z.string().trim().max(120).optional(),
-  utmMedium: z.string().trim().max(120).optional(),
-  utmCampaign: z.string().trim().max(160).optional(),
-  referrerUrl: z.string().trim().max(500).optional()
+    })
 });
 
 export type QuoteSubmissionPayload = z.infer<typeof quoteSubmissionSchema>;

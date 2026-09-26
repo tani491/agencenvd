@@ -22,15 +22,8 @@ export async function POST(request: Request) {
         full_name: payload.fullName.trim(),
         phone: normalizeSenegalPhone(payload.phone),
         location: payload.location.trim(),
-        details: emptyToNull(payload.details),
         services: payload.services,
-        furniture_photo_url: emptyToNull(payload.furniturePhotoUrl),
-        preferred_date: emptyToNull(payload.preferredDate),
-        status: "pending",
-        utm_source: emptyToNull(payload.utmSource) ?? "direct",
-        utm_medium: emptyToNull(payload.utmMedium),
-        utm_campaign: emptyToNull(payload.utmCampaign),
-        referrer_url: emptyToNull(payload.referrerUrl)
+        preferred_date: emptyToNull(payload.preferredDate)
       })
       .select("id, created_at")
       .single();

@@ -5,9 +5,9 @@ import { Button } from "@/components/ui/button";
 import { buildWhatsappHref, getPublicSiteConfig } from "@/lib/site-config";
 
 const trustBadges = [
-  "🌿 100% Écologique",
-  "⚡ Intervention 24h",
-  "✨ Satisfaction Garantie"
+  "100% Écologique",
+  "Intervention 24/7",
+  "Satisfaction Garantie"
 ] as const;
 
 export async function Hero() {

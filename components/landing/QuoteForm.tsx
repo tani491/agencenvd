@@ -9,13 +9,11 @@ import {
   MapPin,
   MessageCircle,
   Phone,
-  UploadCloud,
   User
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
   QUOTE_SERVICE_OPTIONS,
@@ -25,31 +23,7 @@ import {
   quoteSubmissionSchema
 } from "@/lib/validations/quote";
 
-const maxUploadBytes = 80 * 1024 * 1024;
-const acceptedMimeTypes = [
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "video/mp4",
-  "video/quicktime"
-] as const;
-const acceptedFileTypes = acceptedMimeTypes.join(",");
-
-type PresignedUploadResponse = {
-  uploadUrl: string;
-  publicUrl: string;
-  requiredHeaders: Record<string, string>;
-};
-
-type ApiErrorResponse = {
-  error?: string;
-};
-
 export function QuoteForm({ whatsappNumber }: { whatsappNumber: string }) {
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadName, setUploadName] = useState("");
-  const [uploadError, setUploadError] = useState("");
   const [feedback, setFeedback] = useState<{
     type: "success" | "error";
     message: string;
@@ -69,19 +43,12 @@ export function QuoteForm({ whatsappNumber }: { whatsappNumber: string }) {
       fullName: "",
       phone: "",
       location: "",
-      details: "",
       services: [],
-      furniturePhotoUrl: "",
-      preferredDate: "",
-      utmSource: "direct",
-      utmMedium: "",
-      utmCampaign: "",
-      referrerUrl: ""
+      preferredDate: ""
     }
   });
 
-  const selectedServices = watch("services");
-  const mediaUrl = watch("furniturePhotoUrl");
+  const selectedServices = watch("services") ?? [];
 
   function toggleService(service: QuoteServiceValue) {
     const nextServices = selectedServices.includes(service)
@@ -95,123 +62,53 @@ export function QuoteForm({ whatsappNumber }: { whatsappNumber: string }) {
     });
   }
 
-  async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    setUploadError("");
-    setUploadProgress(0);
-
-    if (!file) {
-      return;
-    }
-
-    if (!acceptedMimeTypes.includes(file.type as (typeof acceptedMimeTypes)[number])) {
-      setUploadError("Format accepté: JPG, PNG, WebP, MP4 ou MOV.");
-      return;
-    }
-
-    if (file.size > maxUploadBytes) {
-      setUploadError("Le fichier doit faire moins de 80 Mo.");
-      return;
-    }
+  async function onSubmit(values: QuoteSubmissionPayload) {
+    setFeedback(null);
 
     try {
-      setIsUploading(true);
-      setUploadName(file.name);
-
-      const presignedResponse = await fetch("/api/upload/presigned", {
+      const response = await fetch("/api/quotes", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-          fileName: file.name,
-          fileType: file.type,
-          fileSize: file.size
-        })
+        body: JSON.stringify(values)
       });
 
-      if (!presignedResponse.ok) {
-        const apiError = await readApiError(presignedResponse);
-        setUploadError(apiError ?? "Impossible de générer l'URL d'upload.");
+      if (!response.ok) {
+        setFeedback({
+          type: "error",
+          message: "Impossible d'enregistrer la demande pour le moment."
+        });
         return;
       }
 
-      const presignedUpload =
-        (await presignedResponse.json()) as PresignedUploadResponse;
-
-      await uploadFileWithProgress({
-        file,
-        url: presignedUpload.uploadUrl,
-        headers: presignedUpload.requiredHeaders,
-        onProgress: setUploadProgress
+      setFeedback({
+        type: "success",
+        message: "Votre demande est enregistrée. NVD vous recontacte rapidement."
       });
 
-      setValue("furniturePhotoUrl", presignedUpload.publicUrl, {
-        shouldDirty: true,
-        shouldValidate: true
+      if (redirectToWhatsapp) {
+        window.open(
+          buildWhatsappSummaryUrl(values, whatsappNumber),
+          "_blank",
+          "noopener,noreferrer"
+        );
+      }
+
+      reset({
+        fullName: "",
+        phone: "",
+        location: "",
+        services: [],
+        preferredDate: ""
       });
-      setUploadProgress(100);
     } catch (error) {
-      console.error(error);
-      setUploadError("L'upload a échoué. Réessayez ou envoyez la photo via WhatsApp.");
-    } finally {
-      setIsUploading(false);
-    }
-  }
-
-  async function onSubmit(values: QuoteSubmissionPayload) {
-    setFeedback(null);
-
-    const tracking = getTrackingValues();
-    const payload: QuoteSubmissionPayload = {
-      ...values,
-      ...tracking
-    };
-
-    const response = await fetch("/api/quotes", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(payload)
-    });
-
-    if (!response.ok) {
+      console.error("Quote submission failed", error);
       setFeedback({
         type: "error",
-        message: "Impossible d'enregistrer la demande pour le moment."
+        message: "La demande n'a pas pu être envoyée. Réessayez dans un instant."
       });
-      return;
     }
-
-    setFeedback({
-      type: "success",
-      message: "Votre demande est enregistrée. NVD vous recontacte rapidement."
-    });
-
-    if (redirectToWhatsapp) {
-      window.open(
-        buildWhatsappSummaryUrl(payload, whatsappNumber),
-        "_blank",
-        "noopener,noreferrer"
-      );
-    }
-
-    reset({
-      fullName: "",
-      phone: "",
-      location: "",
-      details: "",
-      services: [],
-      furniturePhotoUrl: "",
-      preferredDate: "",
-      utmSource: "direct",
-      utmMedium: "",
-      utmCampaign: "",
-      referrerUrl: ""
-    });
-    setUploadName("");
-    setUploadProgress(0);
   }
 
   return (
@@ -219,7 +116,7 @@ export function QuoteForm({ whatsappNumber }: { whatsappNumber: string }) {
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="grid gap-2 text-sm font-semibold">
           Nom complet
-          <span className="relative">
+          <span className="relative block w-full">
             <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input className="pl-10" placeholder="Votre nom" {...register("fullName")} />
           </span>
@@ -230,7 +127,7 @@ export function QuoteForm({ whatsappNumber }: { whatsappNumber: string }) {
 
         <label className="grid gap-2 text-sm font-semibold">
           Téléphone Sénégal
-          <span className="relative">
+          <span className="relative block w-full">
             <Phone className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               className="pl-10"
@@ -247,7 +144,7 @@ export function QuoteForm({ whatsappNumber }: { whatsappNumber: string }) {
 
       <label className="grid gap-2 text-sm font-semibold">
         Zone / quartier
-        <span className="relative">
+        <span className="relative block w-full">
           <MapPin className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             className="pl-10"
@@ -257,17 +154,6 @@ export function QuoteForm({ whatsappNumber }: { whatsappNumber: string }) {
         </span>
         {errors.location && (
           <span className="text-xs text-destructive">{errors.location.message}</span>
-        )}
-      </label>
-
-      <label className="grid gap-2 text-sm font-semibold">
-        Détail de la demande
-        <Textarea
-          placeholder="Décrivez les taches, le nombre de places, la matière ou toute précision utile."
-          {...register("details")}
-        />
-        {errors.details && (
-          <span className="text-xs text-destructive">{errors.details.message}</span>
         )}
       </label>
 
@@ -319,55 +205,16 @@ export function QuoteForm({ whatsappNumber }: { whatsappNumber: string }) {
         )}
       </div>
 
-      <div className="grid gap-3">
-        <label className="grid gap-2 text-sm font-semibold">
-          Photo ou vidéo du meuble
-          <span className="flex min-h-32 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-cyan-200 bg-cyan-50/40 px-4 py-6 text-center transition hover:border-nvd-blue-primary hover:bg-cyan-50">
-            <UploadCloud className="mb-2 h-7 w-7 text-nvd-blue-primary" />
-            <span className="text-sm font-bold text-nvd-blue-dark">
-              Ajouter une image ou une vidéo
-            </span>
-            <span className="mt-1 text-xs text-muted-foreground">
-              JPG, PNG, WebP, MP4 ou MOV jusqu'à 80 Mo
-            </span>
-            <input
-              className="sr-only"
-              type="file"
-              accept={acceptedFileTypes}
-              onChange={handleFileChange}
-            />
-          </span>
-        </label>
-
-        {(isUploading || uploadProgress > 0) && (
-          <div className="grid gap-2">
-            <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground">
-              <span className="truncate">{uploadName}</span>
-              <span>{uploadProgress}%</span>
-            </div>
-            <div className="h-2 overflow-hidden rounded-full bg-secondary">
-              <div
-                className="h-full rounded-full bg-nvd-blue-primary transition-all"
-                style={{ width: `${uploadProgress}%` }}
-              />
-            </div>
-          </div>
-        )}
-
-        {mediaUrl && !isUploading && (
-          <div className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800">
-            Média reçu et prêt à joindre à la demande.
-          </div>
-        )}
-
-        {uploadError && <span className="text-xs text-destructive">{uploadError}</span>}
-      </div>
-
-      <label className="grid gap-2 text-sm font-semibold">
+      <label className="grid min-w-0 gap-2 text-sm font-semibold">
         Date souhaitée
-        <span className="relative">
+        <span className="relative block w-full min-w-0">
           <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input className="pl-10" type="date" {...register("preferredDate")} />
+          <Input
+            className="w-full min-w-0 pl-10"
+            type="date"
+            min={new Date().toISOString().slice(0, 10)}
+            {...register("preferredDate")}
+          />
         </span>
         {errors.preferredDate && (
           <span className="text-xs text-destructive">{errors.preferredDate.message}</span>
@@ -384,12 +231,7 @@ export function QuoteForm({ whatsappNumber }: { whatsappNumber: string }) {
         Ouvrir WhatsApp avec le récapitulatif après envoi
       </label>
 
-      <Button
-        type="submit"
-        variant="nvd"
-        size="lg"
-        disabled={isSubmitting || isUploading}
-      >
+      <Button type="submit" variant="nvd" size="lg" disabled={isSubmitting}>
         {isSubmitting ? <Loader2 className="animate-spin" /> : <MessageCircle />}
         Envoyer ma demande
       </Button>
@@ -410,66 +252,6 @@ export function QuoteForm({ whatsappNumber }: { whatsappNumber: string }) {
   );
 }
 
-function uploadFileWithProgress({
-  file,
-  url,
-  headers,
-  onProgress
-}: {
-  file: File;
-  url: string;
-  headers: Record<string, string>;
-  onProgress: (progress: number) => void;
-}) {
-  return new Promise<void>((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-
-    xhr.open("PUT", url);
-
-    Object.entries(headers).forEach(([name, value]) => {
-      xhr.setRequestHeader(name, value);
-    });
-
-    xhr.upload.onprogress = (event) => {
-      if (event.lengthComputable) {
-        onProgress(Math.round((event.loaded / event.total) * 100));
-      }
-    };
-
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        resolve();
-        return;
-      }
-
-      reject(new Error(`Upload failed with status ${xhr.status}`));
-    };
-
-    xhr.onerror = () => reject(new Error("Upload network error"));
-    xhr.send(file);
-  });
-}
-
-async function readApiError(response: Response) {
-  try {
-    const data = (await response.json()) as ApiErrorResponse;
-    return data.error;
-  } catch {
-    return null;
-  }
-}
-
-function getTrackingValues() {
-  const searchParams = new URLSearchParams(window.location.search);
-
-  return {
-    utmSource: searchParams.get("utm_source") ?? "direct",
-    utmMedium: searchParams.get("utm_medium") ?? "",
-    utmCampaign: searchParams.get("utm_campaign") ?? "",
-    referrerUrl: document.referrer
-  };
-}
-
 function buildWhatsappSummaryUrl(
   values: QuoteSubmissionPayload,
   whatsappNumber: string
@@ -482,9 +264,7 @@ function buildWhatsappSummaryUrl(
     `Téléphone: ${values.phone}`,
     `Adresse / zone à Dakar: ${values.location}`,
     `Services: ${serviceLabels}`,
-    values.details ? `Détail: ${values.details}` : "",
-    values.preferredDate ? `Date souhaitée: ${values.preferredDate}` : "",
-    values.furniturePhotoUrl ? `Média: ${values.furniturePhotoUrl}` : ""
+    values.preferredDate ? `Date souhaitée: ${values.preferredDate}` : ""
   ]
     .filter(Boolean)
     .join("\n");

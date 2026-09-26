@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Phone, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { MobileNav } from "@/components/landing/MobileNav";
 import { NAV_LINKS } from "@/lib/nvd";
 import {
   buildTelHref,
@@ -36,7 +37,7 @@ export async function Navbar() {
   );
 
   return (
-    <header className="sticky top-0 z-40 border-b border-white/60 bg-white/88 backdrop-blur-xl">
+    <header className="sticky top-0 z-50 border-b border-white/70 bg-white/95 shadow-sm backdrop-blur-xl">
       <div className="section-shell flex h-20 items-center justify-between gap-4">
         <NvdLogo />
 
@@ -51,6 +52,8 @@ export async function Navbar() {
             </Link>
           ))}
         </nav>
+
+        <MobileNav links={NAV_LINKS} />
 
         <div className="hidden items-center gap-2 sm:flex">
           <Button asChild variant="outline" size="sm">
