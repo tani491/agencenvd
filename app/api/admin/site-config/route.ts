@@ -17,6 +17,56 @@ const siteConfigSchema = z.object({
     .optional()
 });
 
+const fallbackConfig = {
+  id: 1,
+  logo_url: "/logo-nvd.svg",
+  phone_primary: "778609143",
+  phone_secondary: "788605633",
+  whatsapp_number: "778609143",
+  hero_title: "Le spécialiste du nettoyage à vapeur & désinfection écologique au Sénégal.",
+  hero_background_url: null
+};
+
+export async function GET() {
+  const admin = await getAdminAuthState();
+
+  if (!admin.isAdmin) {
+    return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
+  }
+
+  try {
+    const supabase = getSupabaseAdminClient();
+    const { data, error } = await supabase
+      .from("site_config")
+      .select("*")
+      .eq("id", 1)
+      .maybeSingle();
+
+    if (error || !data) {
+      return NextResponse.json({
+        config: fallbackConfig,
+        warning:
+          "Configuration Supabase indisponible. Les valeurs par défaut sont utilisées."
+      });
+    }
+
+    return NextResponse.json({
+      config: {
+        ...fallbackConfig,
+        ...data
+      }
+    });
+  } catch (error) {
+    console.warn("Unable to read site config", error);
+
+    return NextResponse.json({
+      config: fallbackConfig,
+      warning:
+        "Configuration Supabase indisponible. Les valeurs par défaut sont utilisées."
+    });
+  }
+}
+
 export async function PATCH(request: Request) {
   const admin = await getAdminAuthState();
 
@@ -42,7 +92,7 @@ export async function PATCH(request: Request) {
       .single();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: error.message }, { status: 503 });
     }
 
     return NextResponse.json({ config: data });
@@ -56,6 +106,9 @@ export async function PATCH(request: Request) {
       );
     }
 
-    return NextResponse.json({ error: "Erreur serveur." }, { status: 500 });
+    return NextResponse.json(
+      { error: "Configuration Supabase indisponible." },
+      { status: 503 }
+    );
   }
 }
