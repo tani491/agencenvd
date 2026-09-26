@@ -7,7 +7,15 @@ import {
   Music2,
   Phone
 } from "lucide-react";
-import { NAV_LINKS, NVD_CONTACT } from "@/lib/nvd";
+import { NVD_CONTACT } from "@/lib/nvd";
+
+const footerLinks = [
+  { label: "Landing Page", href: "/", subtle: false },
+  { label: "Avant / Après", href: "/avant-apres", subtle: false },
+  { label: "Devis Gratuit", href: "/#devis", subtle: false },
+  { label: "Contact", href: "/#contact", subtle: false },
+  { label: "Espace équipe", href: "/admin/login", subtle: true }
+] as const;
 
 const socialLinks = [
   {
@@ -49,7 +57,7 @@ function FooterLogo() {
 
 export function Footer() {
   return (
-    <footer className="bg-nvd-blue-dark text-white">
+    <footer className="bg-nvd-blue-dark pb-24 text-white md:pb-0">
       <div className="section-shell grid gap-10 py-12 sm:py-14 lg:grid-cols-[1.15fr_0.75fr_1fr]">
         <div>
           <FooterLogo />
@@ -84,11 +92,13 @@ export function Footer() {
             Navigation
           </h2>
           <div className="mt-5 grid gap-3 text-sm font-semibold text-white/84">
-            {NAV_LINKS.map((link) => (
+            {footerLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                className="inline-flex items-center gap-2 transition hover:text-nvd-cyan"
+                className={`inline-flex items-center gap-2 transition hover:text-nvd-cyan ${
+                  link.subtle ? "text-white/55" : ""
+                }`}
               >
                 {link.label}
                 <ArrowUpRight className="h-3.5 w-3.5" />
@@ -114,10 +124,7 @@ export function Footer() {
             </a>
             <p className="flex items-start gap-3">
               <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-nvd-cyan" />
-              <span>
-                Dakar et sa banlieue : Almadies, Plateau, Mermoz,
-                Sacré-Cœur, Parcelles, Rufisque...
-              </span>
+              <span>Dakar, Sénégal</span>
             </p>
           </div>
         </div>

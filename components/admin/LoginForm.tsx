@@ -48,7 +48,7 @@ export function LoginForm({ initialError }: { initialError?: string }) {
       });
 
       if (error) {
-        setMessage("Identifiants invalides ou compte non autorisé.");
+        setMessage("Identifiants incorrects ou compte non autorisé.");
         setIsLoading(false);
         return;
       }
@@ -59,8 +59,8 @@ export function LoginForm({ initialError }: { initialError?: string }) {
       return;
     }
 
-    router.replace("/admin/dashboard/quotes");
     router.refresh();
+    router.push("/admin/dashboard");
   }
 
   return (

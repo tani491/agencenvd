@@ -1,6 +1,60 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+type AdminUser = {
+  id: string;
+  email?: string | null;
+  app_metadata?: Record<string, unknown> | null;
+  user_metadata?: Record<string, unknown> | null;
+};
+
+function hasAdminMetadata(metadata?: Record<string, unknown> | null) {
+  const role = metadata?.role;
+  const roles = metadata?.roles;
+
+  return role === "admin" || (Array.isArray(roles) && roles.includes("admin"));
+}
+
+function isAllowlistedAdminEmail(email?: string | null) {
+  const allowlist = new Set(
+    (process.env.ADMIN_EMAILS ?? "")
+      .split(",")
+      .map((allowedEmail) => allowedEmail.trim().toLowerCase())
+      .filter(Boolean)
+  );
+
+  return allowlist.has((email ?? "").toLowerCase());
+}
+
+async function hasAdminAccess(
+  supabase: ReturnType<typeof createServerClient>,
+  user: AdminUser
+) {
+  if (
+    hasAdminMetadata(user.app_metadata) ||
+    hasAdminMetadata(user.user_metadata) ||
+    isAllowlistedAdminEmail(user.email)
+  ) {
+    return true;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (error) {
+      return false;
+    }
+
+    return data?.role === "admin";
+  } catch {
+    return false;
+  }
+}
+
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request
@@ -41,23 +95,42 @@ export async function middleware(request: NextRequest) {
     }
   });
 
-  let user = null;
+  let user: AdminUser | null = null;
 
   try {
     const {
       data: { user: currentUser }
     } = await supabase.auth.getUser();
 
-    user = currentUser;
+    user = currentUser as AdminUser | null;
   } catch {
     user = null;
   }
 
-  if (!user && !pathname.startsWith("/admin/login")) {
+  const isLoginRoute = pathname.startsWith("/admin/login");
+  const isDashboardRoute = pathname.startsWith("/admin/dashboard");
+  const isAdmin = user ? await hasAdminAccess(supabase, user) : false;
+
+  if (isLoginRoute && isAdmin) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/admin/dashboard";
+    url.search = "";
+    const redirectResponse = NextResponse.redirect(url);
+    supabaseResponse.cookies.getAll().forEach((cookie) => {
+      redirectResponse.cookies.set(cookie);
+    });
+    return redirectResponse;
+  }
+
+  if (isDashboardRoute && (!user || !isAdmin)) {
     const url = request.nextUrl.clone();
     url.pathname = "/admin/login";
     url.searchParams.set("error", "unauthorized");
-    return NextResponse.redirect(url);
+    const redirectResponse = NextResponse.redirect(url);
+    supabaseResponse.cookies.getAll().forEach((cookie) => {
+      redirectResponse.cookies.set(cookie);
+    });
+    return redirectResponse;
   }
 
   return supabaseResponse;

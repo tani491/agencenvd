@@ -6,6 +6,7 @@ type AdminUser = {
   id: string;
   email?: string | null;
   app_metadata?: Record<string, unknown> | null;
+  user_metadata?: Record<string, unknown> | null;
 };
 
 type SupabaseAuthReader = {
@@ -22,7 +23,18 @@ export type AdminAuthState = {
 };
 
 export async function getAdminAuthState(): Promise<AdminAuthState> {
-  const supabase = await createSupabaseServerClient();
+  let supabase;
+
+  try {
+    supabase = await createSupabaseServerClient();
+  } catch {
+    return {
+      isAdmin: false,
+      email: null,
+      userId: null
+    };
+  }
+
   const auth = supabase.auth as unknown as SupabaseAuthReader;
   const { data, error } = await auth.getUser();
 
@@ -35,7 +47,7 @@ export async function getAdminAuthState(): Promise<AdminAuthState> {
   }
 
   return {
-    isAdmin: isAdminUser(data.user),
+    isAdmin: await isAdminUser(supabase, data.user),
     email: data.user.email ?? null,
     userId: data.user.id
   };
@@ -51,9 +63,39 @@ export async function requireAdminUser() {
   return state;
 }
 
-export function isAdminUser(user: AdminUser) {
-  return isAdminIdentity({
+export async function isAdminUser(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  user: AdminUser
+) {
+  const hasMetadataAccess = isAdminIdentity({
     email: user.email ?? null,
     appMetadata: user.app_metadata
-  });
+  }) || hasAdminMetadata(user.user_metadata);
+
+  if (hasMetadataAccess) {
+    return true;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (error) {
+      return false;
+    }
+
+    return data?.role === "admin";
+  } catch {
+    return false;
+  }
+}
+
+function hasAdminMetadata(metadata?: Record<string, unknown> | null) {
+  const role = metadata?.role;
+  const roles = metadata?.roles;
+
+  return role === "admin" || (Array.isArray(roles) && roles.includes("admin"));
 }
