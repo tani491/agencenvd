@@ -1,0 +1,9 @@
+.next
+node_modules
+.bun-cache
+.tmp
+dist
+out
+.env
+.env.local
+*.log
