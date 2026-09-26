@@ -1,12 +1,9 @@
 import { redirect } from "next/navigation";
-import { isAdminIdentity } from "@/lib/admin/identity";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 type AdminUser = {
   id: string;
   email?: string | null;
-  app_metadata?: Record<string, unknown> | null;
-  user_metadata?: Record<string, unknown> | null;
 };
 
 type SupabaseAuthReader = {
@@ -17,6 +14,7 @@ type SupabaseAuthReader = {
 };
 
 export type AdminAuthState = {
+  isAuthenticated: boolean;
   isAdmin: boolean;
   email: string | null;
   userId: string | null;
@@ -29,6 +27,7 @@ export async function getAdminAuthState(): Promise<AdminAuthState> {
     supabase = await createSupabaseServerClient();
   } catch {
     return {
+      isAuthenticated: false,
       isAdmin: false,
       email: null,
       userId: null
@@ -40,6 +39,7 @@ export async function getAdminAuthState(): Promise<AdminAuthState> {
 
   if (error || !data.user) {
     return {
+      isAuthenticated: false,
       isAdmin: false,
       email: null,
       userId: null
@@ -47,6 +47,7 @@ export async function getAdminAuthState(): Promise<AdminAuthState> {
   }
 
   return {
+    isAuthenticated: true,
     isAdmin: await isAdminUser(supabase, data.user),
     email: data.user.email ?? null,
     userId: data.user.id
@@ -55,6 +56,10 @@ export async function getAdminAuthState(): Promise<AdminAuthState> {
 
 export async function requireAdminUser() {
   const state = await getAdminAuthState();
+
+  if (!state.isAuthenticated) {
+    redirect("/admin/login");
+  }
 
   if (!state.isAdmin) {
     redirect("/admin/login?error=unauthorized");
@@ -67,15 +72,6 @@ export async function isAdminUser(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   user: AdminUser
 ) {
-  const hasMetadataAccess = isAdminIdentity({
-    email: user.email ?? null,
-    appMetadata: user.app_metadata
-  }) || hasAdminMetadata(user.user_metadata);
-
-  if (hasMetadataAccess) {
-    return true;
-  }
-
   try {
     const { data, error } = await supabase
       .from("profiles")
@@ -91,11 +87,4 @@ export async function isAdminUser(
   } catch {
     return false;
   }
-}
-
-function hasAdminMetadata(metadata?: Record<string, unknown> | null) {
-  const role = metadata?.role;
-  const roles = metadata?.roles;
-
-  return role === "admin" || (Array.isArray(roles) && roles.includes("admin"));
 }

@@ -4,40 +4,12 @@ import { NextResponse, type NextRequest } from "next/server";
 type AdminUser = {
   id: string;
   email?: string | null;
-  app_metadata?: Record<string, unknown> | null;
-  user_metadata?: Record<string, unknown> | null;
 };
-
-function hasAdminMetadata(metadata?: Record<string, unknown> | null) {
-  const role = metadata?.role;
-  const roles = metadata?.roles;
-
-  return role === "admin" || (Array.isArray(roles) && roles.includes("admin"));
-}
-
-function isAllowlistedAdminEmail(email?: string | null) {
-  const allowlist = new Set(
-    (process.env.ADMIN_EMAILS ?? "")
-      .split(",")
-      .map((allowedEmail) => allowedEmail.trim().toLowerCase())
-      .filter(Boolean)
-  );
-
-  return allowlist.has((email ?? "").toLowerCase());
-}
 
 async function hasAdminAccess(
   supabase: ReturnType<typeof createServerClient>,
   user: AdminUser
 ) {
-  if (
-    hasAdminMetadata(user.app_metadata) ||
-    hasAdminMetadata(user.user_metadata) ||
-    isAllowlistedAdminEmail(user.email)
-  ) {
-    return true;
-  }
-
   try {
     const { data, error } = await supabase
       .from("profiles")
@@ -55,11 +27,40 @@ async function hasAdminAccess(
   }
 }
 
+function copySupabaseCookies(
+  fromResponse: NextResponse,
+  toResponse: NextResponse
+) {
+  fromResponse.cookies.getAll().forEach((cookie) => {
+    toResponse.cookies.set(cookie);
+  });
+}
+
+function redirectToLogin(
+  request: NextRequest,
+  supabaseResponse: NextResponse,
+  error?: "unauthorized"
+) {
+  const url = request.nextUrl.clone();
+  url.pathname = "/admin/login";
+  url.search = "";
+
+  if (error) {
+    url.searchParams.set("error", error);
+  }
+
+  const redirectResponse = NextResponse.redirect(url);
+  copySupabaseCookies(supabaseResponse, redirectResponse);
+  return redirectResponse;
+}
+
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request
   });
   const pathname = request.nextUrl.pathname;
+  const isLoginRoute = pathname === "/admin/login";
+  const isDashboardRoute = pathname.startsWith("/admin/dashboard");
 
   if (!pathname.startsWith("/admin")) {
     return supabaseResponse;
@@ -71,6 +72,10 @@ export async function middleware(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey) {
+    if (isDashboardRoute) {
+      return redirectToLogin(request, supabaseResponse);
+    }
+
     return supabaseResponse;
   }
 
@@ -107,8 +112,6 @@ export async function middleware(request: NextRequest) {
     user = null;
   }
 
-  const isLoginRoute = pathname.startsWith("/admin/login");
-  const isDashboardRoute = pathname.startsWith("/admin/dashboard");
   const isAdmin = user ? await hasAdminAccess(supabase, user) : false;
 
   if (isLoginRoute && isAdmin) {
@@ -116,21 +119,16 @@ export async function middleware(request: NextRequest) {
     url.pathname = "/admin/dashboard";
     url.search = "";
     const redirectResponse = NextResponse.redirect(url);
-    supabaseResponse.cookies.getAll().forEach((cookie) => {
-      redirectResponse.cookies.set(cookie);
-    });
+    copySupabaseCookies(supabaseResponse, redirectResponse);
     return redirectResponse;
   }
 
-  if (isDashboardRoute && (!user || !isAdmin)) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/admin/login";
-    url.searchParams.set("error", "unauthorized");
-    const redirectResponse = NextResponse.redirect(url);
-    supabaseResponse.cookies.getAll().forEach((cookie) => {
-      redirectResponse.cookies.set(cookie);
-    });
-    return redirectResponse;
+  if (isDashboardRoute && !user) {
+    return redirectToLogin(request, supabaseResponse);
+  }
+
+  if (isDashboardRoute && !isAdmin) {
+    return redirectToLogin(request, supabaseResponse, "unauthorized");
   }
 
   return supabaseResponse;

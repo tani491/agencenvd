@@ -96,6 +96,7 @@ export function Footer() {
               <Link
                 key={link.href}
                 href={link.href}
+                prefetch={link.href.startsWith("/admin") ? false : undefined}
                 className={`inline-flex items-center gap-2 transition hover:text-nvd-cyan ${
                   link.subtle ? "text-white/55" : ""
                 }`}
