@@ -1,8 +1,16 @@
 "use client";
 
 import { createBrowserClient } from "@supabase/ssr";
-import { getSupabasePublishableKey, getSupabasePublicUrl } from "@/lib/supabase/env";
 
 export function createClient() {
-  return createBrowserClient(getSupabasePublicUrl(), getSupabasePublishableKey());
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabasePublishableKey =
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+  if (!supabaseUrl || !supabasePublishableKey) {
+    throw new Error("Supabase browser configuration is missing.");
+  }
+
+  return createBrowserClient(supabaseUrl, supabasePublishableKey);
 }

@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createBrowserClient } from "@supabase/ssr";
 import { Loader2, LockKeyhole, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { createClient } from "@/lib/supabase/client";
 
 type SupabasePasswordAuth = {
   signInWithPassword: (credentials: {
@@ -31,16 +31,7 @@ export function LoginForm({ initialError }: { initialError?: string }) {
     setMessage("");
 
     try {
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const supabaseAnonKey =
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
-        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-
-      if (!supabaseUrl || !supabaseAnonKey) {
-        throw new Error("Supabase client unavailable");
-      }
-
-      const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey);
+      const supabase = createClient();
       const auth = supabase.auth as unknown as SupabasePasswordAuth;
       const { error } = await auth.signInWithPassword({
         email,

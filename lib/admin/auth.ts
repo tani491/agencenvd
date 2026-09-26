@@ -35,7 +35,20 @@ export async function getAdminAuthState(): Promise<AdminAuthState> {
   }
 
   const auth = supabase.auth as unknown as SupabaseAuthReader;
-  const { data, error } = await auth.getUser();
+  let authResult: Awaited<ReturnType<SupabaseAuthReader["getUser"]>>;
+
+  try {
+    authResult = await auth.getUser();
+  } catch {
+    return {
+      isAuthenticated: false,
+      isAdmin: false,
+      email: null,
+      userId: null
+    };
+  }
+
+  const { data, error } = authResult;
 
   if (error || !data.user) {
     return {
