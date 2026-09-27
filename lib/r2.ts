@@ -141,11 +141,7 @@ export async function getPresignedUploadUrl(
     Bucket: getR2BucketName(),
     Key: key,
     ContentType: contentType,
-    CacheControl: cacheControl,
-    Metadata: {
-      source: "nvd-upload",
-      original_filename: filename.slice(0, 120)
-    }
+    CacheControl: cacheControl
   });
   const uploadUrl = await getSignedUrl(getR2Client(), command, { expiresIn });
 
@@ -188,7 +184,7 @@ export async function uploadBufferToR2({
       CacheControl: cacheControl,
       Metadata: {
         source: "nvd-upload",
-        original_filename: fileName.slice(0, 120)
+        original_filename: sanitizeUploadFileName(fileName).slice(0, 120)
       }
     })
   );
@@ -245,6 +241,20 @@ export function buildPublicR2Url(key: string) {
     .split("/")
     .map((segment) => encodeURIComponent(segment))
     .join("/")}`;
+}
+
+export function sanitizeUploadFileName(fileName: string) {
+  const normalized = fileName
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/['’"`]/g, "")
+    .replace(/\s+/g, "_")
+    .replace(/[^a-z0-9._-]/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+  return normalized || "media";
 }
 
 export function isAllowedR2MimeType(value: string): value is R2AllowedMimeType {
