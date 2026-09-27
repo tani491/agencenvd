@@ -43,6 +43,7 @@ export async function getPublishedPortfolioPage(
       persistSession: false
     },
     global: {
+      fetch: noStoreFetch,
       headers: {
         "X-Client-Info": "nvd-public-portfolio"
       }
@@ -74,4 +75,11 @@ export async function getPublishedPortfolioPage(
     total: count ?? 0,
     error: null
   };
+}
+
+function noStoreFetch(input: RequestInfo | URL, init?: RequestInit) {
+  return fetch(input, {
+    ...init,
+    cache: "no-store"
+  });
 }

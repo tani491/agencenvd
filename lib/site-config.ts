@@ -38,6 +38,7 @@ export async function getPublicSiteConfig(): Promise<PublicSiteConfig> {
         persistSession: false
       },
       global: {
+        fetch: noStoreFetch,
         headers: {
           "X-Client-Info": "nvd-public-site-config"
         }
@@ -105,4 +106,11 @@ function toSenegalLocalDigits(number: string) {
   }
 
   return digits;
+}
+
+function noStoreFetch(input: RequestInfo | URL, init?: RequestInit) {
+  return fetch(input, {
+    ...init,
+    cache: "no-store"
+  });
 }

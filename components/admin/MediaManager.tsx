@@ -6,10 +6,12 @@ import {
   CheckCircle2,
   ImagePlus,
   Loader2,
+  Pencil,
   Save,
   Trash2,
   UploadCloud,
-  Video
+  Video,
+  X
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -48,6 +50,12 @@ export function MediaManager({
   const [isCreating, setIsCreating] = useState(false);
   const [isSavingHero, setIsSavingHero] = useState(false);
   const [deletingId, setDeletingId] = useState("");
+  const [editingId, setEditingId] = useState("");
+  const [editTitle, setEditTitle] = useState("");
+  const [editCategory, setEditCategory] = useState("");
+  const [editBeforeMediaUrl, setEditBeforeMediaUrl] = useState("");
+  const [editAfterMediaUrl, setEditAfterMediaUrl] = useState("");
+  const [updatingId, setUpdatingId] = useState("");
   const [feedback, setFeedback] = useState<Feedback>(null);
 
   async function handleUpload(
@@ -93,41 +101,71 @@ export function MediaManager({
     setIsSavingHero(true);
     setFeedback(null);
 
-    const response = await fetch("/api/admin/site-config", {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        logoUrl: config.logo_url,
-        phonePrimary: config.phone_primary,
-        phoneSecondary: config.phone_secondary,
-        whatsappNumber: config.whatsapp_number,
-        heroTitle: config.hero_title ?? "",
-        heroBackgroundUrl: config.hero_background_url ?? ""
-      })
-    });
+    await persistHeroConfig(config.hero_background_url ?? "", "Hero public mis à jour.");
+  }
 
-    const payload = await response.json().catch(() => null);
+  async function deleteHeroImage() {
+    const confirmed = window.confirm("Supprimer l'image Hero de la vitrine ?");
 
-    if (!response.ok) {
-      setFeedback({
-        type: "error",
-        message: payload?.error ?? "Impossible d'enregistrer le Hero."
-      });
-      setIsSavingHero(false);
+    if (!confirmed) {
       return;
     }
 
-    if (payload?.config) {
-      setConfig(payload.config as SiteConfig);
-    }
+    setIsSavingHero(true);
+    setFeedback(null);
 
-    setFeedback({
-      type: "success",
-      message: "Hero public mis à jour."
-    });
-    setIsSavingHero(false);
+    await persistHeroConfig("", "Image Hero supprimée.");
+  }
+
+  async function persistHeroConfig(heroBackgroundUrl: string, successMessage: string) {
+    try {
+      const response = await fetch("/api/admin/site-config", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          logoUrl: config.logo_url,
+          phonePrimary: config.phone_primary,
+          phoneSecondary: config.phone_secondary,
+          whatsappNumber: config.whatsapp_number,
+          heroTitle: config.hero_title ?? "",
+          heroBackgroundUrl
+        })
+      });
+
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        setFeedback({
+          type: "error",
+          message: payload?.error ?? "Impossible d'enregistrer le Hero."
+        });
+        return;
+      }
+
+      if (payload?.config) {
+        setConfig(payload.config as SiteConfig);
+      } else {
+        setConfig((current) => ({
+          ...current,
+          hero_background_url: heroBackgroundUrl || null
+        }));
+      }
+
+      setFeedback({
+        type: "success",
+        message: successMessage
+      });
+    } catch (error) {
+      console.error(error);
+      setFeedback({
+        type: "error",
+        message: "Impossible d'enregistrer le Hero."
+      });
+    } finally {
+      setIsSavingHero(false);
+    }
   }
 
   async function createPortfolioItem(event: React.FormEvent<HTMLFormElement>) {
@@ -172,6 +210,67 @@ export function MediaManager({
       message: "Paire avant/après ajoutée au portfolio."
     });
     setIsCreating(false);
+  }
+
+  function startEditingPortfolioItem(item: PortfolioItem) {
+    setEditingId(item.id);
+    setEditTitle(item.title);
+    setEditCategory(item.category);
+    setEditBeforeMediaUrl(item.before_media_url);
+    setEditAfterMediaUrl(item.after_media_url);
+    setFeedback(null);
+  }
+
+  function cancelEditingPortfolioItem() {
+    setEditingId("");
+    setEditTitle("");
+    setEditCategory("");
+    setEditBeforeMediaUrl("");
+    setEditAfterMediaUrl("");
+  }
+
+  async function updatePortfolioItem(
+    event: React.FormEvent<HTMLFormElement>,
+    item: PortfolioItem
+  ) {
+    event.preventDefault();
+    setUpdatingId(item.id);
+    setFeedback(null);
+
+    const response = await fetch(`/api/admin/portfolio/${item.id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        title: editTitle,
+        category: editCategory,
+        beforeMediaUrl: editBeforeMediaUrl,
+        afterMediaUrl: editAfterMediaUrl
+      })
+    });
+    const payload = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      setFeedback({
+        type: "error",
+        message: payload?.error ?? "Impossible de modifier cette réalisation."
+      });
+      setUpdatingId("");
+      return;
+    }
+
+    setItems((current) =>
+      current.map((currentItem) =>
+        currentItem.id === item.id ? (payload.item as PortfolioItem) : currentItem
+      )
+    );
+    cancelEditingPortfolioItem();
+    setFeedback({
+      type: "success",
+      message: "Réalisation modifiée."
+    });
+    setUpdatingId("");
   }
 
   async function togglePublish(item: PortfolioItem) {
@@ -288,10 +387,22 @@ export function MediaManager({
               />
             </label>
 
-            <Button type="submit" variant="nvd" size="lg" disabled={isSavingHero}>
-              {isSavingHero ? <Loader2 className="animate-spin" /> : <Save />}
-              Enregistrer le Hero
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button type="submit" variant="nvd" size="lg" disabled={isSavingHero}>
+                {isSavingHero ? <Loader2 className="animate-spin" /> : <Save />}
+                Enregistrer le Hero
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                size="lg"
+                disabled={isSavingHero || !config.hero_background_url}
+                onClick={deleteHeroImage}
+              >
+                <Trash2 />
+                Supprimer l'image
+              </Button>
+            </div>
           </form>
         </CardContent>
       </Card>
@@ -393,11 +504,19 @@ export function MediaManager({
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => startEditingPortfolioItem(item)}
+                  >
+                    <Pencil />
+                    Modifier
+                  </Button>
                   <Button variant="outline" size="sm" onClick={() => togglePublish(item)}>
                     {item.is_published ? "Dépublier" : "Publier"}
                   </Button>
                   <Button
-                    variant="outline"
+                    variant="destructive"
                     size="sm"
                     onClick={() => deletePortfolioItem(item)}
                     disabled={deletingId === item.id}
@@ -410,6 +529,71 @@ export function MediaManager({
                     Supprimer
                   </Button>
                 </div>
+                {editingId === item.id && (
+                  <form
+                    className="grid gap-3 border-t pt-3 sm:col-span-3 sm:grid-cols-2"
+                    onSubmit={(event) => updatePortfolioItem(event, item)}
+                  >
+                    <label className="grid gap-2 text-sm font-semibold">
+                      Titre
+                      <Input
+                        value={editTitle}
+                        onChange={(event) => setEditTitle(event.target.value)}
+                        required
+                      />
+                    </label>
+                    <label className="grid gap-2 text-sm font-semibold">
+                      Catégorie
+                      <Input
+                        value={editCategory}
+                        onChange={(event) => setEditCategory(event.target.value)}
+                        required
+                      />
+                    </label>
+                    <label className="grid gap-2 text-sm font-semibold">
+                      URL image avant
+                      <Input
+                        value={editBeforeMediaUrl}
+                        onChange={(event) =>
+                          setEditBeforeMediaUrl(event.target.value)
+                        }
+                        required
+                      />
+                    </label>
+                    <label className="grid gap-2 text-sm font-semibold">
+                      URL image après
+                      <Input
+                        value={editAfterMediaUrl}
+                        onChange={(event) => setEditAfterMediaUrl(event.target.value)}
+                        required
+                      />
+                    </label>
+                    <div className="flex flex-wrap gap-2 sm:col-span-2">
+                      <Button
+                        type="submit"
+                        variant="nvd"
+                        size="sm"
+                        disabled={updatingId === item.id}
+                      >
+                        {updatingId === item.id ? (
+                          <Loader2 className="animate-spin" />
+                        ) : (
+                          <Save />
+                        )}
+                        Enregistrer
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={cancelEditingPortfolioItem}
+                      >
+                        <X />
+                        Annuler
+                      </Button>
+                    </div>
+                  </form>
+                )}
               </div>
             ))}
           </div>

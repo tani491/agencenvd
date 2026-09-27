@@ -8,6 +8,7 @@ import { QuoteSection } from "@/components/landing/QuoteSection";
 import { ServicesGrid } from "@/components/landing/ServicesGrid";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default function PublicLandingPage() {
   return (

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getAdminAuthState } from "@/lib/admin/auth";
 import { getDefaultSiteConfig } from "@/lib/admin/data";
@@ -85,6 +86,8 @@ export async function PATCH(request: Request) {
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 503 });
     }
+
+    revalidatePath("/");
 
     return NextResponse.json({ config: data });
   } catch (error) {

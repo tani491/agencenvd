@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getAdminAuthState } from "@/lib/admin/auth";
 import { deleteR2Object, getR2ObjectKeyFromPublicUrl } from "@/lib/r2";
@@ -31,7 +32,7 @@ export async function PATCH(
   try {
     const body = portfolioPatchSchema.parse(await request.json());
     const supabase = getSupabaseAdminClient();
-    const updatePayload = {
+    const updatePayload: Record<string, unknown> = {
       ...(body.title !== undefined ? { title: body.title } : {}),
       ...(body.category !== undefined ? { category: body.category } : {}),
       ...(body.beforeMediaUrl !== undefined
@@ -42,16 +43,17 @@ export async function PATCH(
       ...(body.isPublished !== undefined ? { is_published: body.isPublished } : {})
     };
 
-    const { data, error } = await supabase
-      .from("portfolio_items")
-      .update(updatePayload)
-      .eq("id", id)
-      .select("*")
-      .single();
+    if (body.afterMediaUrl !== undefined) {
+      updatePayload.after_url = body.afterMediaUrl;
+    }
+
+    const { data, error } = await updatePortfolioItem(supabase, id, updatePayload);
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
+
+    revalidatePublicPortfolio();
 
     return NextResponse.json({ item: data });
   } catch (error) {
@@ -98,6 +100,8 @@ export async function DELETE(
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    revalidatePublicPortfolio();
+
     const mediaKeys = [
       getR2ObjectKeyFromPublicUrl(item.before_media_url),
       getR2ObjectKeyFromPublicUrl(item.after_media_url)
@@ -113,4 +117,50 @@ export async function DELETE(
 
     return NextResponse.json({ error: "Erreur serveur." }, { status: 500 });
   }
+}
+
+async function updatePortfolioItem(
+  supabase: ReturnType<typeof getSupabaseAdminClient>,
+  id: string,
+  payload: Record<string, unknown>
+) {
+  const result = await supabase
+    .from("portfolio_items")
+    .update(payload)
+    .eq("id", id)
+    .select("*")
+    .single();
+
+  if (!isMissingOptionalPortfolioColumn(result.error)) {
+    return result;
+  }
+
+  const { after_url: _afterUrl, is_hero: _isHero, ...safePayload } = payload;
+
+  return supabase
+    .from("portfolio_items")
+    .update(safePayload)
+    .eq("id", id)
+    .select("*")
+    .single();
+}
+
+function isMissingOptionalPortfolioColumn(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const message = "message" in error ? String(error.message) : "";
+  const code = "code" in error ? String(error.code) : "";
+
+  return (
+    code === "PGRST204" ||
+    message.includes("after_url") ||
+    message.includes("is_hero")
+  );
+}
+
+function revalidatePublicPortfolio() {
+  revalidatePath("/");
+  revalidatePath("/avant-apres");
 }
