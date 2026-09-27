@@ -25,10 +25,9 @@ import {
 
 export function QuoteForm({ whatsappNumber }: { whatsappNumber: string }) {
   const [feedback, setFeedback] = useState<{
-    type: "success" | "error";
+    type: "success";
     message: string;
   } | null>(null);
-  const [redirectToWhatsapp, setRedirectToWhatsapp] = useState(true);
 
   const {
     register,
@@ -62,53 +61,47 @@ export function QuoteForm({ whatsappNumber }: { whatsappNumber: string }) {
     });
   }
 
-  async function onSubmit(values: QuoteSubmissionPayload) {
+  function onSubmit(values: QuoteSubmissionPayload) {
     setFeedback(null);
 
-    try {
-      const response = await fetch("/api/quotes", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(values)
-      });
+    window.open(
+      buildWhatsappSummaryUrl(values, whatsappNumber),
+      "_blank",
+      "noopener,noreferrer"
+    );
 
-      if (!response.ok) {
-        setFeedback({
-          type: "error",
-          message: "Impossible d'enregistrer la demande pour le moment."
-        });
-        return;
-      }
+    setFeedback({
+      type: "success",
+      message: "WhatsApp s'ouvre avec votre récapitulatif. NVD vous répond rapidement."
+    });
 
-      setFeedback({
-        type: "success",
-        message: "Votre demande est enregistrée. NVD vous recontacte rapidement."
-      });
+    reset({
+      fullName: "",
+      phone: "",
+      location: "",
+      services: [],
+      preferredDate: ""
+    });
 
-      if (redirectToWhatsapp) {
-        window.open(
-          buildWhatsappSummaryUrl(values, whatsappNumber),
-          "_blank",
-          "noopener,noreferrer"
-        );
-      }
-
-      reset({
-        fullName: "",
-        phone: "",
-        location: "",
-        services: [],
-        preferredDate: ""
+    void fetch("/api/quotes", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(values)
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null);
+          console.warn("Quote background save failed", {
+            status: response.status,
+            error: payload?.error
+          });
+        }
+      })
+      .catch((error) => {
+        console.warn("Quote background save failed", error);
       });
-    } catch (error) {
-      console.error("Quote submission failed", error);
-      setFeedback({
-        type: "error",
-        message: "La demande n'a pas pu être envoyée. Réessayez dans un instant."
-      });
-    }
   }
 
   return (
@@ -221,16 +214,6 @@ export function QuoteForm({ whatsappNumber }: { whatsappNumber: string }) {
         )}
       </label>
 
-      <label className="flex items-center gap-3 rounded-lg bg-secondary px-3 py-3 text-sm font-semibold text-nvd-blue-dark">
-        <input
-          type="checkbox"
-          checked={redirectToWhatsapp}
-          onChange={(event) => setRedirectToWhatsapp(event.target.checked)}
-          className="h-4 w-4 accent-nvd-blue-primary"
-        />
-        Ouvrir WhatsApp avec le récapitulatif après envoi
-      </label>
-
       <Button type="submit" variant="nvd" size="lg" disabled={isSubmitting}>
         {isSubmitting ? <Loader2 className="animate-spin" /> : <MessageCircle />}
         Envoyer ma demande
@@ -240,9 +223,7 @@ export function QuoteForm({ whatsappNumber }: { whatsappNumber: string }) {
         <div
           className={cn(
             "rounded-lg px-4 py-3 text-sm font-semibold",
-            feedback.type === "success"
-              ? "bg-emerald-50 text-emerald-800"
-              : "bg-red-50 text-red-700"
+            "bg-emerald-50 text-emerald-800"
           )}
         >
           {feedback.message}

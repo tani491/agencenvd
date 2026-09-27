@@ -1,6 +1,8 @@
 const r2PublicUrl =
   process.env.CLOUDFLARE_R2_PUBLIC_URL ??
-  process.env.NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL;
+  process.env.NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL ??
+  process.env.R2_PUBLIC_URL ??
+  process.env.NEXT_PUBLIC_R2_PUBLIC_URL;
 
 const remotePatterns = [
   {

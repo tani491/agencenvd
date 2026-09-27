@@ -20,10 +20,9 @@ import type { PortfolioItem, SiteConfig } from "@/lib/admin/data";
 
 type UploadFolder = "portfolio" | "hero";
 
-type PresignedUploadResponse = {
-  uploadUrl: string;
-  publicUrl: string;
-  requiredHeaders: Record<string, string>;
+type UploadResponse = {
+  publicUrl?: string;
+  error?: string;
 };
 
 type Feedback = {
@@ -59,7 +58,10 @@ export function MediaManager({
     setFeedback(null);
 
     try {
-      const publicUrl = await uploadToR2(file, target === "hero" ? "hero" : "portfolio");
+      const publicUrl = await uploadMedia(
+        file,
+        target === "hero" ? "hero" : "portfolio"
+      );
 
       if (target === "hero") {
         setConfig((current) => ({
@@ -79,7 +81,7 @@ export function MediaManager({
       console.error(error);
       setFeedback({
         type: "error",
-        message: "Upload R2 impossible pour le moment."
+        message: getUploadErrorMessage(error)
       });
     } finally {
       setUploadingTarget("");
@@ -440,7 +442,7 @@ function UploadPanel({
           <UploadCloud className="mb-2 h-6 w-6 text-nvd-blue-primary" />
         )}
         <span className="text-xs text-muted-foreground">
-          {value ? "Média chargé sur R2" : "Uploader sur Cloudflare R2"}
+          {value ? "Média chargé" : "Uploader une image"}
         </span>
         {value && <CheckCircle2 className="mt-2 h-5 w-5 text-nvd-eco-green" />}
         <input
@@ -479,34 +481,32 @@ function MediaThumb({ item }: { item: PortfolioItem }) {
   );
 }
 
-async function uploadToR2(file: File, folder: UploadFolder) {
+async function uploadMedia(file: File, folder: UploadFolder) {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("folder", folder);
+
   const response = await fetch("/api/admin/upload/presigned", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      fileName: file.name,
-      fileType: file.type,
-      fileSize: file.size,
-      folder
-    })
+    body: formData
   });
+  const payload = (await response.json().catch(() => null)) as UploadResponse | null;
 
   if (!response.ok) {
-    throw new Error("R2 presigned upload failed");
+    throw new Error(
+      payload?.error ?? `Upload refusé par le serveur (${response.status}).`
+    );
   }
 
-  const presignedUpload = (await response.json()) as PresignedUploadResponse;
-  const uploadResponse = await fetch(presignedUpload.uploadUrl, {
-    method: "PUT",
-    headers: presignedUpload.requiredHeaders,
-    body: file
-  });
-
-  if (!uploadResponse.ok) {
-    throw new Error("R2 upload failed");
+  if (!payload?.publicUrl) {
+    throw new Error("Upload terminé sans URL publique.");
   }
 
-  return presignedUpload.publicUrl;
+  return payload.publicUrl;
+}
+
+function getUploadErrorMessage(error: unknown) {
+  return error instanceof Error
+    ? error.message
+    : "Upload média impossible pour le moment.";
 }

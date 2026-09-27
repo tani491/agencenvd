@@ -31,9 +31,46 @@ type S3ClientWithSend = S3Client & {
   send: (command: unknown) => Promise<unknown>;
 };
 
-function requireEnv(name: string, aliases: string[] = []) {
+const r2EnvGroups = [
+  {
+    label: "account id",
+    names: ["CLOUDFLARE_R2_ACCOUNT_ID", "R2_ACCOUNT_ID"]
+  },
+  {
+    label: "access key",
+    names: ["CLOUDFLARE_R2_ACCESS_KEY_ID", "R2_ACCESS_KEY_ID"]
+  },
+  {
+    label: "secret key",
+    names: ["CLOUDFLARE_R2_SECRET_ACCESS_KEY", "R2_SECRET_ACCESS_KEY"]
+  },
+  {
+    label: "bucket",
+    names: [
+      "CLOUDFLARE_R2_BUCKET_NAME",
+      "CLOUDFLARE_R2_BUCKET",
+      "R2_BUCKET_NAME",
+      "R2_BUCKET"
+    ]
+  },
+  {
+    label: "public url",
+    names: [
+      "NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL",
+      "CLOUDFLARE_R2_PUBLIC_URL",
+      "NEXT_PUBLIC_R2_PUBLIC_URL",
+      "R2_PUBLIC_URL"
+    ]
+  }
+] as const;
+
+function getEnv(names: readonly string[]) {
+  return names.map((key) => process.env[key]).find(Boolean) ?? null;
+}
+
+function requireEnv(name: string, aliases: readonly string[] = []) {
   const names = [name, ...aliases];
-  const value = names.map((key) => process.env[key]).find(Boolean);
+  const value = getEnv(names);
 
   if (!value) {
     throw new Error(`Missing environment variable: ${names.join(" or ")}`);
@@ -43,7 +80,11 @@ function requireEnv(name: string, aliases: string[] = []) {
 }
 
 export function getR2BucketName() {
-  return requireEnv("CLOUDFLARE_R2_BUCKET_NAME", ["CLOUDFLARE_R2_BUCKET"]);
+  return requireEnv("CLOUDFLARE_R2_BUCKET_NAME", [
+    "CLOUDFLARE_R2_BUCKET",
+    "R2_BUCKET_NAME",
+    "R2_BUCKET"
+  ]);
 }
 
 export function getR2Client() {
@@ -51,16 +92,37 @@ export function getR2Client() {
 }
 
 function getR2ClientConfig() {
-  const accountId = requireEnv("CLOUDFLARE_R2_ACCOUNT_ID");
+  const accountId = requireEnv("CLOUDFLARE_R2_ACCOUNT_ID", ["R2_ACCOUNT_ID"]);
 
   return {
     region: "auto",
     endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
     credentials: {
-      accessKeyId: requireEnv("CLOUDFLARE_R2_ACCESS_KEY_ID"),
-      secretAccessKey: requireEnv("CLOUDFLARE_R2_SECRET_ACCESS_KEY")
+      accessKeyId: requireEnv("CLOUDFLARE_R2_ACCESS_KEY_ID", [
+        "R2_ACCESS_KEY_ID"
+      ]),
+      secretAccessKey: requireEnv("CLOUDFLARE_R2_SECRET_ACCESS_KEY", [
+        "R2_SECRET_ACCESS_KEY"
+      ])
     }
   };
+}
+
+export function getMissingR2EnvNames() {
+  return r2EnvGroups
+    .filter((group) => !getEnv(group.names))
+    .map((group) => group.names.join(" or "));
+}
+
+export function isR2UploadConfigured() {
+  return getMissingR2EnvNames().length === 0;
+}
+
+export function isMissingR2ConfigError(error: unknown) {
+  return (
+    error instanceof Error &&
+    error.message.startsWith("Missing environment variable:")
+  );
 }
 
 export async function getPresignedUploadUrl(
@@ -96,6 +158,44 @@ export async function getPresignedUploadUrl(
       "Content-Type": contentType,
       "Cache-Control": cacheControl
     }
+  };
+}
+
+export async function uploadBufferToR2({
+  fileName,
+  contentType,
+  body,
+  folder = "quotes"
+}: {
+  fileName: string;
+  contentType: string;
+  body: Uint8Array;
+  folder?: string;
+}) {
+  if (!isAllowedR2MimeType(contentType)) {
+    throw new Error(`Unsupported R2 upload content type: ${contentType}`);
+  }
+
+  const key = buildR2ObjectKey(fileName, contentType, folder);
+  const cacheControl = "public, max-age=31536000, immutable";
+
+  await (getR2Client() as S3ClientWithSend).send(
+    new PutObjectCommand({
+      Bucket: getR2BucketName(),
+      Key: key,
+      Body: body,
+      ContentType: contentType,
+      CacheControl: cacheControl,
+      Metadata: {
+        source: "nvd-upload",
+        original_filename: fileName.slice(0, 120)
+      }
+    })
+  );
+
+  return {
+    publicUrl: buildPublicR2Url(key),
+    key
   };
 }
 
@@ -136,7 +236,9 @@ export function buildR2ObjectKey(
 
 export function buildPublicR2Url(key: string) {
   const publicBaseUrl = requireEnv("NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL", [
-    "CLOUDFLARE_R2_PUBLIC_URL"
+    "CLOUDFLARE_R2_PUBLIC_URL",
+    "NEXT_PUBLIC_R2_PUBLIC_URL",
+    "R2_PUBLIC_URL"
   ]).replace(/\/$/, "");
 
   return `${publicBaseUrl}/${key
@@ -152,7 +254,9 @@ export function isAllowedR2MimeType(value: string): value is R2AllowedMimeType {
 export function getR2ObjectKeyFromPublicUrl(fileUrl: string) {
   const publicBaseUrl =
     process.env.NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL ??
-    process.env.CLOUDFLARE_R2_PUBLIC_URL;
+    process.env.CLOUDFLARE_R2_PUBLIC_URL ??
+    process.env.NEXT_PUBLIC_R2_PUBLIC_URL ??
+    process.env.R2_PUBLIC_URL;
 
   if (!publicBaseUrl) {
     return null;

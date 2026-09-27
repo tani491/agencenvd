@@ -3,7 +3,9 @@ import { z } from "zod";
 import {
   R2_ALLOWED_MIME_TYPES,
   R2_UPLOAD_MAX_BYTES,
-  getPresignedUploadUrl
+  getMissingR2EnvNames,
+  getPresignedUploadUrl,
+  isMissingR2ConfigError
 } from "@/lib/r2";
 import { getValidationIssues } from "@/lib/validations/errors";
 
@@ -35,14 +37,15 @@ export async function POST(request: Request) {
       );
     }
 
-    if (isMissingEnvError(error)) {
+    if (isMissingR2ConfigError(error)) {
       console.warn("R2 upload is not configured", error);
 
       return NextResponse.json(
         {
           code: "UPLOAD_STORAGE_NOT_CONFIGURED",
           error:
-            "L'upload média n'est pas configuré. Renseignez les variables Cloudflare R2 dans .env.local puis redémarrez Next.js."
+            "L'upload média n'est pas configuré. Renseignez les variables Cloudflare R2 dans .env.local puis redémarrez Next.js.",
+          missingEnv: getMissingR2EnvNames()
         },
         { status: 503 }
       );
@@ -55,11 +58,4 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
-}
-
-function isMissingEnvError(error: unknown) {
-  return (
-    error instanceof Error &&
-    error.message.startsWith("Missing environment variable:")
-  );
 }
