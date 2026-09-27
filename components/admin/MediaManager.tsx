@@ -50,6 +50,7 @@ export function MediaManager({
   const [isCreating, setIsCreating] = useState(false);
   const [isSavingHero, setIsSavingHero] = useState(false);
   const [deletingId, setDeletingId] = useState("");
+  const [publishingId, setPublishingId] = useState("");
   const [editingId, setEditingId] = useState("");
   const [editTitle, setEditTitle] = useState("");
   const [editCategory, setEditCategory] = useState("");
@@ -281,29 +282,45 @@ export function MediaManager({
   }
 
   async function togglePublish(item: PortfolioItem) {
-    const response = await fetch(`/api/admin/portfolio/${item.id}`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ isPublished: !item.is_published })
-    });
+    if (publishingId) {
+      return;
+    }
 
-    if (!response.ok) {
+    setPublishingId(item.id);
+
+    try {
+      const response = await fetch(`/api/admin/portfolio/${item.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ isPublished: !item.is_published })
+      });
+
+      if (!response.ok) {
+        setFeedback({
+          type: "error",
+          message: "Impossible de modifier la publication."
+        });
+        return;
+      }
+
+      setItems((current) =>
+        current.map((currentItem) =>
+          currentItem.id === item.id
+            ? { ...currentItem, is_published: !item.is_published }
+            : currentItem
+        )
+      );
+    } catch (error) {
+      console.error(error);
       setFeedback({
         type: "error",
         message: "Impossible de modifier la publication."
       });
-      return;
+    } finally {
+      setPublishingId("");
     }
-
-    setItems((current) =>
-      current.map((currentItem) =>
-        currentItem.id === item.id
-          ? { ...currentItem, is_published: !item.is_published }
-          : currentItem
-      )
-    );
   }
 
   async function deletePortfolioItem(item: PortfolioItem) {
@@ -532,13 +549,20 @@ export function MediaManager({
                     type="button"
                     variant="outline"
                     size="sm"
+                    disabled={publishingId === item.id}
                     onClick={(event) => {
                       event.preventDefault();
                       event.stopPropagation();
                       void togglePublish(item);
                     }}
                   >
-                    {item.is_published ? "Dépublier" : "Publier"}
+                    {publishingId === item.id ? (
+                      <Loader2 className="animate-spin" />
+                    ) : item.is_published ? (
+                      "Dépublier"
+                    ) : (
+                      "Publier"
+                    )}
                   </Button>
                   <Button
                     type="button"

@@ -28,6 +28,7 @@ export function QuoteForm({ whatsappNumber }: { whatsappNumber: string }) {
     type: "success";
     message: string;
   } | null>(null);
+  const [isOpeningWhatsapp, setIsOpeningWhatsapp] = useState(false);
 
   const {
     register,
@@ -62,6 +63,11 @@ export function QuoteForm({ whatsappNumber }: { whatsappNumber: string }) {
   }
 
   function onSubmit(values: QuoteSubmissionPayload) {
+    if (isOpeningWhatsapp) {
+      return;
+    }
+
+    setIsOpeningWhatsapp(true);
     setFeedback(null);
 
     window.open(
@@ -102,6 +108,10 @@ export function QuoteForm({ whatsappNumber }: { whatsappNumber: string }) {
       .catch((error) => {
         console.warn("Quote background save failed", error);
       });
+
+    window.setTimeout(() => {
+      setIsOpeningWhatsapp(false);
+    }, 1500);
   }
 
   return (
@@ -214,8 +224,17 @@ export function QuoteForm({ whatsappNumber }: { whatsappNumber: string }) {
         )}
       </label>
 
-      <Button type="submit" variant="nvd" size="lg" disabled={isSubmitting}>
-        {isSubmitting ? <Loader2 className="animate-spin" /> : <MessageCircle />}
+      <Button
+        type="submit"
+        variant="nvd"
+        size="lg"
+        disabled={isSubmitting || isOpeningWhatsapp}
+      >
+        {isSubmitting || isOpeningWhatsapp ? (
+          <Loader2 className="animate-spin" />
+        ) : (
+          <MessageCircle />
+        )}
         Envoyer ma demande
       </Button>
 

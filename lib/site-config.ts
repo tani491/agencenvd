@@ -23,6 +23,8 @@ export const fallbackSiteConfig: PublicSiteConfig = {
     "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=1800&q=85"
 };
 
+const publicDataRevalidateSeconds = 60;
+
 export async function getPublicSiteConfig(): Promise<PublicSiteConfig> {
   const supabaseUrl = getOptionalSupabasePublicUrl();
   const supabaseKey = getOptionalSupabasePublishableKey();
@@ -38,7 +40,7 @@ export async function getPublicSiteConfig(): Promise<PublicSiteConfig> {
         persistSession: false
       },
       global: {
-        fetch: noStoreFetch,
+        fetch: revalidatedFetch,
         headers: {
           "X-Client-Info": "nvd-public-site-config"
         }
@@ -215,9 +217,12 @@ function toSenegalLocalDigits(number: string) {
   return digits;
 }
 
-function noStoreFetch(input: RequestInfo | URL, init?: RequestInit) {
+function revalidatedFetch(input: RequestInfo | URL, init?: RequestInit) {
   return fetch(input, {
     ...init,
-    cache: "no-store"
+    cache: "force-cache",
+    next: {
+      revalidate: publicDataRevalidateSeconds
+    }
   });
 }

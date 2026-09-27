@@ -15,6 +15,8 @@ export type PublicTestimonial = {
   is_published?: boolean | null;
 };
 
+const publicDataRevalidateSeconds = 60;
+
 export async function getPublishedTestimonials(limit = 6) {
   const supabaseUrl = getOptionalSupabasePublicUrl();
   const supabaseKey = getOptionalSupabasePublishableKey();
@@ -29,7 +31,7 @@ export async function getPublishedTestimonials(limit = 6) {
       persistSession: false
     },
     global: {
-      fetch: noStoreFetch,
+      fetch: revalidatedFetch,
       headers: {
         "X-Client-Info": "nvd-public-testimonials"
       }
@@ -127,9 +129,12 @@ function isMissingPublicationColumn(error: unknown) {
   return code === "PGRST204" || message.includes("is_published");
 }
 
-function noStoreFetch(input: RequestInfo | URL, init?: RequestInit) {
+function revalidatedFetch(input: RequestInfo | URL, init?: RequestInit) {
   return fetch(input, {
     ...init,
-    cache: "no-store"
+    cache: "force-cache",
+    next: {
+      revalidate: publicDataRevalidateSeconds
+    }
   });
 }
