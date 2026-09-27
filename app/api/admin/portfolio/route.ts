@@ -26,7 +26,7 @@ export async function POST(request: Request) {
   try {
     const body = portfolioCreateSchema.parse(await request.json());
     const supabase = getSupabaseAdminClient();
-    const insertPayload = {
+    const insertPayload: PortfolioInsertPayload = {
       title: body.title || "Réalisation NVD",
       category: body.category || "Canapés",
       before_media_url: body.beforeMediaUrl,
@@ -42,7 +42,10 @@ export async function POST(request: Request) {
 
     revalidatePublicPortfolio();
 
-    return NextResponse.json({ item: data }, { status: 201 });
+    return NextResponse.json(
+      { item: normalizePortfolioItemResponse(data, body.isPublished) },
+      { status: 201 }
+    );
   } catch (error) {
     const issues = getValidationIssues(error);
 
@@ -57,19 +60,22 @@ export async function POST(request: Request) {
   }
 }
 
+type PortfolioInsertPayload = {
+  title: string;
+  category: string;
+  before_media_url: string;
+  after_media_url: string;
+  media_type: "image" | "video";
+  is_published: boolean;
+};
+
 async function insertPortfolioItem(
   supabase: ReturnType<typeof getSupabaseAdminClient>,
-  payload: {
-    title: string;
-    category: string;
-    before_media_url: string;
-    after_media_url: string;
-    media_type: "image" | "video";
-    is_published: boolean;
-  }
+  payload: PortfolioInsertPayload
 ) {
   const extendedPayload = {
     ...payload,
+    before_url: payload.before_media_url,
     after_url: payload.after_media_url,
     is_hero: false
   };
@@ -83,7 +89,23 @@ async function insertPortfolioItem(
     return extendedResult;
   }
 
-  return supabase.from("portfolio_items").insert(payload).select("*").single();
+  const coreResult = await supabase
+    .from("portfolio_items")
+    .insert(payload)
+    .select("*")
+    .single();
+
+  if (!isMissingOptionalPortfolioColumn(coreResult.error)) {
+    return coreResult;
+  }
+
+  const { is_published: _isPublished, ...legacyPayload } = payload;
+
+  return supabase
+    .from("portfolio_items")
+    .insert(legacyPayload)
+    .select("*")
+    .single();
 }
 
 function isMissingOptionalPortfolioColumn(error: unknown) {
@@ -96,9 +118,22 @@ function isMissingOptionalPortfolioColumn(error: unknown) {
 
   return (
     code === "PGRST204" ||
+    message.includes("before_url") ||
     message.includes("after_url") ||
+    message.includes("is_published") ||
     message.includes("is_hero")
   );
+}
+
+function normalizePortfolioItemResponse(data: unknown, isPublished: boolean) {
+  if (!data || typeof data !== "object") {
+    return data;
+  }
+
+  return {
+    is_published: isPublished,
+    ...data
+  };
 }
 
 function revalidatePublicPortfolio() {

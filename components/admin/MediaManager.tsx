@@ -397,7 +397,11 @@ export function MediaManager({
                 variant="destructive"
                 size="lg"
                 disabled={isSavingHero || !config.hero_background_url}
-                onClick={deleteHeroImage}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  void deleteHeroImage();
+                }}
               >
                 <Trash2 />
                 Supprimer l'image
@@ -505,20 +509,39 @@ export function MediaManager({
                 </div>
                 <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                   <Button
+                    type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => startEditingPortfolioItem(item)}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      startEditingPortfolioItem(item);
+                    }}
                   >
                     <Pencil />
                     Modifier
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => togglePublish(item)}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      void togglePublish(item);
+                    }}
+                  >
                     {item.is_published ? "Dépublier" : "Publier"}
                   </Button>
                   <Button
+                    type="button"
                     variant="destructive"
                     size="sm"
-                    onClick={() => deletePortfolioItem(item)}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      void deletePortfolioItem(item);
+                    }}
                     disabled={deletingId === item.id}
                   >
                     {deletingId === item.id ? (

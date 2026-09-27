@@ -50,15 +50,27 @@ export async function getPublishedPortfolioPage(
     }
   });
 
-  const { data, error, count } = await supabase
-    .from("portfolio_items")
-    .select(
+  const selectPortfolioPage = (onlyPublished: boolean) => {
+    let query = supabase.from("portfolio_items").select(
       "id, created_at, title, category, before_media_url, after_media_url, media_type",
       { count: "exact" }
-    )
-    .eq("is_published", true)
-    .order("created_at", { ascending: false })
-    .range(from, to);
+    );
+
+    if (onlyPublished) {
+      query = query.eq("is_published", true);
+    }
+
+    return query.order("created_at", { ascending: false }).range(from, to);
+  };
+
+  let { data, error, count } = await selectPortfolioPage(true);
+
+  if (isMissingPublicationColumn(error)) {
+    const legacyResult = await selectPortfolioPage(false);
+    data = legacyResult.data;
+    error = legacyResult.error;
+    count = legacyResult.count;
+  }
 
   if (error) {
     console.warn("Unable to load published portfolio items", error);
@@ -75,6 +87,17 @@ export async function getPublishedPortfolioPage(
     total: count ?? 0,
     error: null
   };
+}
+
+function isMissingPublicationColumn(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const message = "message" in error ? String(error.message) : "";
+  const code = "code" in error ? String(error.code) : "";
+
+  return code === "PGRST204" || message.includes("is_published");
 }
 
 function noStoreFetch(input: RequestInfo | URL, init?: RequestInit) {

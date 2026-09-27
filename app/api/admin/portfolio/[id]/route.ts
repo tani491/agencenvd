@@ -43,6 +43,10 @@ export async function PATCH(
       ...(body.isPublished !== undefined ? { is_published: body.isPublished } : {})
     };
 
+    if (body.beforeMediaUrl !== undefined) {
+      updatePayload.before_url = body.beforeMediaUrl;
+    }
+
     if (body.afterMediaUrl !== undefined) {
       updatePayload.after_url = body.afterMediaUrl;
     }
@@ -135,11 +139,29 @@ async function updatePortfolioItem(
     return result;
   }
 
-  const { after_url: _afterUrl, is_hero: _isHero, ...safePayload } = payload;
+  const {
+    before_url: _beforeUrl,
+    after_url: _afterUrl,
+    is_hero: _isHero,
+    ...safePayload
+  } = payload;
+
+  const safeResult = await supabase
+    .from("portfolio_items")
+    .update(safePayload)
+    .eq("id", id)
+    .select("*")
+    .single();
+
+  if (!isMissingOptionalPortfolioColumn(safeResult.error)) {
+    return safeResult;
+  }
+
+  const { is_published: _isPublished, ...legacyPayload } = safePayload;
 
   return supabase
     .from("portfolio_items")
-    .update(safePayload)
+    .update(legacyPayload)
     .eq("id", id)
     .select("*")
     .single();
@@ -155,7 +177,9 @@ function isMissingOptionalPortfolioColumn(error: unknown) {
 
   return (
     code === "PGRST204" ||
+    message.includes("before_url") ||
     message.includes("after_url") ||
+    message.includes("is_published") ||
     message.includes("is_hero")
   );
 }
