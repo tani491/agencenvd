@@ -21,7 +21,7 @@ const adminUploadRequestSchema = z.object({
   fileName: z.string().min(1).max(180),
   fileType: z.enum(R2_ALLOWED_MIME_TYPES),
   fileSize: z.number().int().positive().max(R2_UPLOAD_MAX_BYTES).optional(),
-  folder: z.enum(["portfolio", "hero", "quotes"]).default("portfolio")
+  folder: z.enum(["portfolio", "hero", "quotes", "logos"]).default("portfolio")
 });
 
 type AdminUploadPayload = z.infer<typeof adminUploadRequestSchema>;

@@ -6,6 +6,7 @@ import { Hero } from "@/components/landing/Hero";
 import { Navbar } from "@/components/landing/Navbar";
 import { QuoteSection } from "@/components/landing/QuoteSection";
 import { ServicesGrid } from "@/components/landing/ServicesGrid";
+import { Testimonials } from "@/components/Testimonials";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -18,6 +19,7 @@ export default function PublicLandingPage() {
       <Hero />
       <ServicesGrid />
       <BeforeAfterSlider />
+      <Testimonials />
       <QuoteSection />
       <Footer />
       <FloatingActionBar />

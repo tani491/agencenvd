@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Phone, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MobileNav } from "@/components/landing/MobileNav";
@@ -9,13 +10,19 @@ import {
   getPublicSiteConfig
 } from "@/lib/site-config";
 
-function NvdLogo() {
+function NvdLogo({ logoUrl }: { logoUrl: string }) {
   return (
     <Link href="/" className="flex items-center gap-3" aria-label="NVD Accueil">
-      <span className="relative grid h-11 w-11 place-items-center overflow-hidden rounded-lg bg-nvd-blue-dark text-white shadow-nvd-soft">
-        <span className="absolute bottom-0 h-5 w-full bg-nvd-blue-primary" />
-        <span className="absolute bottom-3 h-4 w-14 rounded-[50%] bg-nvd-cyan/80" />
-        <span className="relative text-sm font-black tracking-normal">NVD</span>
+      <span className="relative grid h-11 w-11 place-items-center overflow-hidden rounded-lg bg-white shadow-nvd-soft ring-1 ring-slate-200">
+        <Image
+          src={logoUrl}
+          alt="Logo NVD"
+          fill
+          sizes="44px"
+          className="object-contain p-1.5"
+          priority
+          unoptimized
+        />
       </span>
       <span className="hidden leading-tight sm:block">
         <span className="block text-sm font-black uppercase tracking-normal text-nvd-blue-dark">
@@ -39,7 +46,7 @@ export async function Navbar() {
   return (
     <header className="sticky top-0 z-50 border-b border-white/70 bg-white/95 shadow-sm backdrop-blur-xl">
       <div className="section-shell flex h-20 items-center justify-between gap-4">
-        <NvdLogo />
+        <NvdLogo logoUrl={config.logo_url} />
 
         <nav className="hidden items-center gap-6 text-sm font-semibold text-nvd-blue-dark lg:flex">
           {NAV_LINKS.map((link) => (

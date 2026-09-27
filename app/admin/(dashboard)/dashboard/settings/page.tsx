@@ -1,8 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { createBrowserClient } from "@supabase/ssr";
-import { Loader2, Save, ShieldCheck } from "lucide-react";
+import {
+  CheckCircle2,
+  ImagePlus,
+  Loader2,
+  Save,
+  ShieldCheck,
+  Trash2,
+  UploadCloud
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -27,6 +36,11 @@ type SiteConfigResponse = {
   error?: string;
 };
 
+type UploadResponse = {
+  publicUrl?: string;
+  error?: string;
+};
+
 const fallbackConfig: SiteConfig = {
   id: 1,
   logo_url: "/logo-nvd.svg",
@@ -43,9 +57,12 @@ export default function AdminSettingsPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordFeedback, setPasswordFeedback] = useState<Feedback>(null);
   const [contactFeedback, setContactFeedback] = useState<Feedback>(null);
+  const [logoFeedback, setLogoFeedback] = useState<Feedback>(null);
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const [isSavingContacts, setIsSavingContacts] = useState(false);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [isSavingLogo, setIsSavingLogo] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -220,6 +237,107 @@ export default function AdminSettingsPage() {
     }
   }
 
+  async function handleLogoUpload(file: File) {
+    setLogoFeedback(null);
+    setIsUploadingLogo(true);
+
+    try {
+      const publicUrl = await uploadMedia(file, "logos");
+
+      setConfig((current) => ({
+        ...current,
+        logo_url: publicUrl
+      }));
+      await persistLogoUrl(publicUrl, "Logo NVD mis à jour.");
+    } catch (error) {
+      console.error(error);
+      setLogoFeedback({
+        type: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Upload du logo impossible pour le moment."
+      });
+    } finally {
+      setIsUploadingLogo(false);
+    }
+  }
+
+  async function saveLogoUrl() {
+    setLogoFeedback(null);
+    await persistLogoUrl(config.logo_url || fallbackConfig.logo_url, "Logo NVD enregistré.");
+  }
+
+  async function resetLogo() {
+    const confirmed = window.confirm("Réinitialiser le logo NVD par défaut ?");
+
+    if (!confirmed) {
+      return;
+    }
+
+    setLogoFeedback(null);
+    setConfig((current) => ({
+      ...current,
+      logo_url: fallbackConfig.logo_url
+    }));
+    await persistLogoUrl(fallbackConfig.logo_url, "Logo NVD réinitialisé.");
+  }
+
+  async function persistLogoUrl(logoUrl: string, successMessage: string) {
+    setIsSavingLogo(true);
+
+    try {
+      const response = await fetch("/api/admin/site-config", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          key: "site_logo",
+          value: {
+            logo_url: logoUrl
+          },
+          logoUrl,
+          logo_url: logoUrl,
+          phonePrimary: config.phone_primary,
+          phoneSecondary: config.phone_secondary,
+          whatsappNumber: config.whatsapp_number,
+          heroTitle: config.hero_title ?? "",
+          heroBackgroundUrl: config.hero_background_url ?? ""
+        })
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | SiteConfigResponse
+        | null;
+
+      if (!response.ok) {
+        setLogoFeedback({
+          type: "error",
+          message: payload?.error ?? "Impossible d'enregistrer le logo."
+        });
+        return;
+      }
+
+      setConfig((current) => ({
+        ...current,
+        ...(payload?.config ?? {}),
+        logo_url: logoUrl
+      }));
+      setLogoFeedback({
+        type: "success",
+        message: successMessage
+      });
+    } catch (error) {
+      console.error(error);
+      setLogoFeedback({
+        type: "error",
+        message: "Erreur réseau pendant l'enregistrement du logo."
+      });
+    } finally {
+      setIsSavingLogo(false);
+    }
+  }
+
   return (
     <div className="grid gap-6">
       <header>
@@ -280,6 +398,113 @@ export default function AdminSettingsPage() {
             </form>
 
             <FeedbackMessage feedback={passwordFeedback} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Logo officiel NVD</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4">
+              <div className="flex items-center gap-4 rounded-lg border bg-slate-50 p-4">
+                <div className="relative h-16 w-16 overflow-hidden rounded-lg bg-white shadow-sm">
+                  <Image
+                    src={config.logo_url || fallbackConfig.logo_url}
+                    alt="Logo officiel NVD"
+                    fill
+                    sizes="64px"
+                    className="object-contain p-2"
+                    unoptimized
+                  />
+                </div>
+                <div>
+                  <div className="font-black text-nvd-blue-dark">
+                    Logo affiché dans la navigation
+                  </div>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Le changement est publié sur la vitrine après enregistrement.
+                  </p>
+                </div>
+              </div>
+
+              <label className="grid gap-2 text-sm font-semibold">
+                Uploader un nouveau logo
+                <span className="flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-cyan-200 bg-cyan-50/40 px-4 py-5 text-center transition hover:border-nvd-blue-primary">
+                  {isUploadingLogo ? (
+                    <Loader2 className="mb-2 h-6 w-6 animate-spin text-nvd-blue-primary" />
+                  ) : (
+                    <UploadCloud className="mb-2 h-6 w-6 text-nvd-blue-primary" />
+                  )}
+                  <span className="text-xs text-muted-foreground">
+                    PNG, JPG ou WebP
+                  </span>
+                  {config.logo_url && (
+                    <CheckCircle2 className="mt-2 h-5 w-5 text-nvd-eco-green" />
+                  )}
+                  <input
+                    className="sr-only"
+                    type="file"
+                    accept="image/*"
+                    disabled={isUploadingLogo || isSavingLogo}
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (file) {
+                        void handleLogoUpload(file);
+                      }
+                    }}
+                  />
+                </span>
+              </label>
+
+              <label className="grid gap-2 text-sm font-semibold">
+                URL du logo
+                <Input
+                  type="text"
+                  value={config.logo_url}
+                  onChange={(event) =>
+                    setConfig((current) => ({
+                      ...current,
+                      logo_url: event.target.value
+                    }))
+                  }
+                  disabled={isLoadingConfig}
+                />
+              </label>
+
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="nvd"
+                  size="lg"
+                  disabled={isSavingLogo || isUploadingLogo || isLoadingConfig}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    void saveLogoUrl();
+                  }}
+                >
+                  {isSavingLogo ? <Loader2 className="animate-spin" /> : <ImagePlus />}
+                  Enregistrer le logo
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="lg"
+                  disabled={isSavingLogo || isUploadingLogo || isLoadingConfig}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    void resetLogo();
+                  }}
+                >
+                  <Trash2 />
+                  Réinitialiser
+                </Button>
+              </div>
+            </div>
+
+            <FeedbackMessage feedback={logoFeedback} />
           </CardContent>
         </Card>
 
@@ -361,6 +586,32 @@ function createSupabaseBrowserClient() {
   }
 
   return createBrowserClient(supabaseUrl, supabaseAnonKey);
+}
+
+async function uploadMedia(file: File, folder: "logos") {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("folder", folder);
+
+  const response = await fetch("/api/admin/upload/presigned", {
+    method: "POST",
+    body: formData
+  });
+  const payload = (await response.json().catch(() => null)) as
+    | UploadResponse
+    | null;
+
+  if (!response.ok) {
+    throw new Error(
+      payload?.error ?? `Upload refusé par le serveur (${response.status}).`
+    );
+  }
+
+  if (!payload?.publicUrl) {
+    throw new Error("Upload terminé sans URL publique.");
+  }
+
+  return payload.publicUrl;
 }
 
 function FeedbackMessage({ feedback }: { feedback: Feedback }) {

@@ -83,6 +83,33 @@ function withDefaults(row?: SiteConfigRow | null): SiteConfig {
   };
 }
 
+function withDefaultsFromKeyRows(rows: SiteConfigRow[]): SiteConfig {
+  const merged = rows.reduce<SiteConfigRow>((config, row) => {
+    if (row.key === "site_logo") {
+      return {
+        ...config,
+        logo_url: row.logo_url || row.value?.logo_url || row.value?.image_url || config.logo_url,
+        value: {
+          ...(config.value ?? {}),
+          ...(row.value ?? {}),
+          logo_url: row.logo_url || row.value?.logo_url || row.value?.image_url || config.value?.logo_url
+        }
+      };
+    }
+
+    return {
+      ...config,
+      ...row,
+      value: {
+        ...(config.value ?? {}),
+        ...(row.value ?? {})
+      }
+    };
+  }, {});
+
+  return withDefaults(merged);
+}
+
 function toSiteConfigRow(body: SiteConfigPayload) {
   const fallback = getDefaultSiteConfig();
   const heroBackgroundUrl =
@@ -155,14 +182,15 @@ export async function GET() {
     const byKeyResult = await supabase
       .from("site_config")
       .select("*")
-      .eq("key", "hero_section")
-      .maybeSingle();
+      .in("key", ["hero_section", "site_logo"]);
 
-    if (!byKeyResult.error && byKeyResult.data) {
+    if (!byKeyResult.error && byKeyResult.data?.length) {
+      const keyRows = byKeyResult.data as SiteConfigRow[];
+
       return NextResponse.json({
         success: true,
-        data: [byKeyResult.data],
-        config: withDefaults(byKeyResult.data as SiteConfigRow)
+        data: keyRows,
+        config: withDefaultsFromKeyRows(keyRows)
       });
     }
 

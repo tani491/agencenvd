@@ -33,7 +33,20 @@ export type PortfolioItem = {
   category: string;
   before_media_url: string;
   after_media_url: string;
+  before_url?: string | null;
+  after_url?: string | null;
   media_type: "image" | "video";
+  is_published: boolean;
+};
+
+export type TestimonialItem = {
+  id: string;
+  created_at: string;
+  client_name: string;
+  rating: number;
+  comment: string;
+  service_used: string;
+  avatar_url: string | null;
   is_published: boolean;
 };
 
@@ -121,6 +134,15 @@ export async function getAdminPortfolioItems() {
 export async function getAdminSiteConfig() {
   try {
     const supabase = getSupabaseAdminClient();
+    const keyedResult = await supabase
+      .from("site_config")
+      .select("*")
+      .in("key", ["hero_section", "site_logo"]);
+
+    if (!keyedResult.error && keyedResult.data?.length) {
+      return normalizeSiteConfigKeyRows(keyedResult.data);
+    }
+
     const { data, error } = await supabase
       .from("site_config")
       .select("*")
@@ -139,6 +161,30 @@ export async function getAdminSiteConfig() {
   } catch (error) {
     console.warn("Site config unavailable, using default fallback", error);
     return getDefaultSiteConfig();
+  }
+}
+
+export async function getAdminTestimonials() {
+  try {
+    const supabase = getSupabaseAdminClient();
+    const { data, error } = await supabase
+      .from("testimonials")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(200);
+
+    if (error) {
+      console.warn(
+        "Unable to load testimonials, using empty fallback",
+        error.message
+      );
+      return [];
+    }
+
+    return (data ?? []).map(normalizeTestimonialItem);
+  } catch (error) {
+    console.warn("Testimonials unavailable, using empty fallback", error);
+    return [];
   }
 }
 
@@ -274,14 +320,36 @@ function normalizeQuoteRow(row: Partial<QuoteRow>): QuoteRow {
 }
 
 function normalizePortfolioItem(row: Partial<PortfolioItem>): PortfolioItem {
+  const beforeMediaUrl = row.before_media_url ?? row.before_url ?? "";
+  const afterMediaUrl = row.after_media_url ?? row.after_url ?? "";
+
   return {
     id: row.id ?? crypto.randomUUID(),
     created_at: row.created_at ?? new Date(0).toISOString(),
     title: row.title ?? "Réalisation NVD",
     category: row.category ?? "Portfolio",
-    before_media_url: row.before_media_url ?? "",
-    after_media_url: row.after_media_url ?? "",
+    before_media_url: beforeMediaUrl,
+    after_media_url: afterMediaUrl,
+    before_url: beforeMediaUrl,
+    after_url: afterMediaUrl,
     media_type: row.media_type === "video" ? "video" : "image",
+    is_published: row.is_published ?? true
+  };
+}
+
+function normalizeTestimonialItem(
+  row: Partial<TestimonialItem>
+): TestimonialItem {
+  const rating = Number(row.rating ?? 5);
+
+  return {
+    id: row.id ?? crypto.randomUUID(),
+    created_at: row.created_at ?? new Date(0).toISOString(),
+    client_name: row.client_name ?? "Client NVD",
+    rating: Number.isFinite(rating) ? Math.min(5, Math.max(1, rating)) : 5,
+    comment: row.comment ?? "",
+    service_used: row.service_used ?? "Nettoyage vapeur",
+    avatar_url: row.avatar_url ?? null,
     is_published: row.is_published ?? true
   };
 }
@@ -302,6 +370,60 @@ function normalizeSiteConfig(row?: Partial<SiteConfig> | null): SiteConfig {
     hero_title: row.hero_title ?? fallback.hero_title,
     hero_background_url: row.hero_background_url ?? fallback.hero_background_url
   };
+}
+
+function normalizeSiteConfigKeyRows(rows: unknown[]): SiteConfig {
+  const fallback = getDefaultSiteConfig();
+  const merged = rows.reduce<Partial<SiteConfig>>((config, rawRow) => {
+    const row = rawRow as Partial<SiteConfig> & {
+      key?: string | null;
+      value?: Record<string, unknown> | null;
+    };
+    const value = row.value ?? {};
+
+    if (row.key === "site_logo") {
+      return {
+        ...config,
+        logo_url:
+          row.logo_url ||
+          asOptionalString(value.logo_url) ||
+          asOptionalString(value.image_url) ||
+          config.logo_url
+      };
+    }
+
+    return {
+      ...config,
+      id: row.id ?? config.id,
+      logo_url:
+        row.logo_url || asOptionalString(value.logo_url) || config.logo_url,
+      phone_primary:
+        row.phone_primary ||
+        asOptionalString(value.phone_primary) ||
+        config.phone_primary,
+      phone_secondary:
+        row.phone_secondary ||
+        asOptionalString(value.phone_secondary) ||
+        config.phone_secondary,
+      whatsapp_number:
+        row.whatsapp_number ||
+        asOptionalString(value.whatsapp_number) ||
+        config.whatsapp_number,
+      hero_title:
+        row.hero_title || asOptionalString(value.title) || config.hero_title,
+      hero_background_url:
+        row.hero_background_url ||
+        asOptionalString(value.hero_background_url) ||
+        asOptionalString(value.image_url) ||
+        config.hero_background_url
+    };
+  }, fallback);
+
+  return normalizeSiteConfig(merged);
+}
+
+function asOptionalString(value: unknown) {
+  return typeof value === "string" && value.trim() ? value : null;
 }
 
 function isQuoteStatus(value: unknown): value is QuoteStatus {

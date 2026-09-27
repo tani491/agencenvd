@@ -2,7 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ImagePlus, Inbox, LayoutDashboard, Settings } from "lucide-react";
+import {
+  ImagePlus,
+  Inbox,
+  LayoutDashboard,
+  MessageSquareQuote,
+  Settings
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const adminLinks = [
@@ -22,6 +28,12 @@ const adminLinks = [
     href: "/admin/dashboard/media",
     label: "CMS Médias & Hero",
     icon: ImagePlus,
+    exact: false
+  },
+  {
+    href: "/admin/dashboard/testimonials",
+    label: "Témoignages Clients",
+    icon: MessageSquareQuote,
     exact: false
   },
   {

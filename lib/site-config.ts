@@ -45,30 +45,121 @@ export async function getPublicSiteConfig(): Promise<PublicSiteConfig> {
       }
     });
 
-    const { data, error } = await supabase
-      .from("site_config")
-      .select(
-        "logo_url, phone_primary, phone_secondary, whatsapp_number, hero_title, hero_background_url"
-      )
-      .eq("id", 1)
-      .single();
+    const [directConfig, keyedConfig] = await Promise.all([
+      loadDirectSiteConfig(supabase),
+      loadKeyedSiteConfig(supabase)
+    ]);
 
-    if (error) {
-      console.warn("Unable to load public site config", error.message);
-      return fallbackSiteConfig;
-    }
-
-    return {
-      ...fallbackSiteConfig,
-      ...data,
-      hero_title: data.hero_title ?? fallbackSiteConfig.hero_title,
-      hero_background_url:
-        data.hero_background_url ?? fallbackSiteConfig.hero_background_url
-    };
+    return withPublicDefaults({
+      ...directConfig,
+      ...keyedConfig
+    });
   } catch (error) {
     console.warn("Public site config unavailable", error);
     return fallbackSiteConfig;
   }
+}
+
+async function loadDirectSiteConfig(
+  supabase: ReturnType<typeof createClient<any>>
+): Promise<Partial<PublicSiteConfig> | null> {
+  const { data, error } = await supabase
+    .from("site_config")
+    .select(
+      "logo_url, phone_primary, phone_secondary, whatsapp_number, hero_title, hero_background_url"
+    )
+    .eq("id", 1)
+    .maybeSingle();
+
+  if (error) {
+    return null;
+  }
+
+  return data;
+}
+
+async function loadKeyedSiteConfig(
+  supabase: ReturnType<typeof createClient<any>>
+): Promise<Partial<PublicSiteConfig> | null> {
+  const { data, error } = await supabase
+    .from("site_config")
+    .select("*")
+    .in("key", ["hero_section", "site_logo"]);
+
+  if (error || !data?.length) {
+    return null;
+  }
+
+  return data.reduce<Partial<PublicSiteConfig>>((config, row) => {
+    const siteConfigRow = row as Record<string, unknown>;
+    const value = asSiteConfigValue(siteConfigRow.value);
+
+    if (siteConfigRow.key === "site_logo") {
+      return {
+        ...config,
+        logo_url:
+          asOptionalString(siteConfigRow.logo_url) ||
+          asOptionalString(value.logo_url) ||
+          asOptionalString(value.image_url) ||
+          config.logo_url
+      };
+    }
+
+    return {
+      ...config,
+      logo_url:
+        asOptionalString(siteConfigRow.logo_url) ||
+        asOptionalString(value.logo_url) ||
+        config.logo_url,
+      phone_primary:
+        asOptionalString(siteConfigRow.phone_primary) ||
+        asOptionalString(value.phone_primary) ||
+        config.phone_primary,
+      phone_secondary:
+        asOptionalString(siteConfigRow.phone_secondary) ||
+        asOptionalString(value.phone_secondary) ||
+        config.phone_secondary,
+      whatsapp_number:
+        asOptionalString(siteConfigRow.whatsapp_number) ||
+        asOptionalString(value.whatsapp_number) ||
+        config.whatsapp_number,
+      hero_title:
+        asOptionalString(siteConfigRow.hero_title) ||
+        asOptionalString(value.title) ||
+        config.hero_title,
+      hero_background_url:
+        asOptionalString(siteConfigRow.hero_background_url) ||
+        asOptionalString(value.hero_background_url) ||
+        asOptionalString(value.image_url) ||
+        config.hero_background_url
+    };
+  }, {});
+}
+
+function withPublicDefaults(config?: Partial<PublicSiteConfig> | null) {
+  return {
+    ...fallbackSiteConfig,
+    ...config,
+    logo_url: config?.logo_url || fallbackSiteConfig.logo_url,
+    phone_primary: config?.phone_primary || fallbackSiteConfig.phone_primary,
+    phone_secondary: config?.phone_secondary || fallbackSiteConfig.phone_secondary,
+    whatsapp_number: config?.whatsapp_number || fallbackSiteConfig.whatsapp_number,
+    hero_title: config?.hero_title || fallbackSiteConfig.hero_title,
+    hero_background_url:
+      config?.hero_background_url || fallbackSiteConfig.hero_background_url
+  };
+}
+
+function asSiteConfigValue(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {} as Record<string, unknown>;
+  }
+
+  return value as Record<string, unknown>;
+}
+
+function asOptionalString(value: unknown) {
+  return typeof value === "string" && value.trim() ? value : null;
 }
 
 export function buildWhatsappHref(number: string, message: string) {
