@@ -8,23 +8,35 @@ import { getValidationIssues } from "@/lib/validations/errors";
 
 export const runtime = "nodejs";
 
+const urlOrEmptySchema = z.union([
+  z.string().url().startsWith("https://"),
+  z.literal("")
+]);
+
 const siteConfigSchema = z.object({
   logoUrl: z.string().trim().min(1).max(500).optional(),
+  logo_url: z.string().trim().min(1).max(500).optional(),
   phonePrimary: z.string().trim().min(7).max(30).optional(),
+  phone_primary: z.string().trim().min(7).max(30).optional(),
   phoneSecondary: z.string().trim().min(7).max(30).optional(),
+  phone_secondary: z.string().trim().min(7).max(30).optional(),
   whatsappNumber: z.string().trim().min(7).max(30).optional(),
+  whatsapp_number: z.string().trim().min(7).max(30).optional(),
   heroTitle: z.string().trim().max(220).optional(),
-  heroBackgroundUrl: z
-    .union([z.string().url().startsWith("https://"), z.literal("")])
-    .optional(),
+  hero_title: z.string().trim().max(220).optional(),
+  heroBackgroundUrl: urlOrEmptySchema.optional(),
+  hero_background_url: urlOrEmptySchema.optional(),
   key: z.string().trim().min(1).max(120).optional(),
   value: z
     .object({
       title: z.string().trim().max(220).optional(),
       subtitle: z.string().trim().max(500).optional(),
-      image_url: z
-        .union([z.string().url().startsWith("https://"), z.literal("")])
-        .optional()
+      image_url: urlOrEmptySchema.optional(),
+      hero_background_url: urlOrEmptySchema.optional(),
+      logo_url: z.string().trim().min(1).max(500).optional(),
+      phone_primary: z.string().trim().min(7).max(30).optional(),
+      phone_secondary: z.string().trim().min(7).max(30).optional(),
+      whatsapp_number: z.string().trim().min(7).max(30).optional()
     })
     .passthrough()
     .optional()
@@ -35,7 +47,12 @@ type SiteConfigRow = Partial<SiteConfig> & {
   key?: string | null;
   value?: {
     title?: string | null;
+    hero_background_url?: string | null;
     image_url?: string | null;
+    logo_url?: string | null;
+    phone_primary?: string | null;
+    phone_secondary?: string | null;
+    whatsapp_number?: string | null;
   } | null;
 };
 
@@ -48,28 +65,54 @@ function withDefaults(row?: SiteConfigRow | null): SiteConfig {
 
   return {
     id: typeof row.id === "number" ? row.id : fallback.id,
-    logo_url: row.logo_url || fallback.logo_url,
-    phone_primary: row.phone_primary || fallback.phone_primary,
-    phone_secondary: row.phone_secondary || fallback.phone_secondary,
-    whatsapp_number: row.whatsapp_number || fallback.whatsapp_number,
+    logo_url: row.logo_url || row.value?.logo_url || fallback.logo_url,
+    phone_primary:
+      row.phone_primary || row.value?.phone_primary || fallback.phone_primary,
+    phone_secondary:
+      row.phone_secondary || row.value?.phone_secondary || fallback.phone_secondary,
+    whatsapp_number:
+      row.whatsapp_number ||
+      row.value?.whatsapp_number ||
+      fallback.whatsapp_number,
     hero_title: row.hero_title ?? row.value?.title ?? fallback.hero_title,
     hero_background_url:
-      row.hero_background_url ?? row.value?.image_url ?? fallback.hero_background_url
+      row.hero_background_url ??
+      row.value?.hero_background_url ??
+      row.value?.image_url ??
+      fallback.hero_background_url
   };
 }
 
 function toSiteConfigRow(body: SiteConfigPayload) {
   const fallback = getDefaultSiteConfig();
   const heroBackgroundUrl =
-    body.heroBackgroundUrl ?? body.value?.image_url ?? fallback.hero_background_url ?? "";
+    body.heroBackgroundUrl ??
+    body.hero_background_url ??
+    body.value?.hero_background_url ??
+    body.value?.image_url ??
+    fallback.hero_background_url ??
+    "";
 
   return {
     id: 1,
-    logo_url: body.logoUrl ?? fallback.logo_url,
-    phone_primary: body.phonePrimary ?? fallback.phone_primary,
-    phone_secondary: body.phoneSecondary ?? fallback.phone_secondary,
-    whatsapp_number: body.whatsappNumber ?? fallback.whatsapp_number,
-    hero_title: body.heroTitle ?? body.value?.title ?? fallback.hero_title,
+    logo_url: body.logoUrl ?? body.logo_url ?? body.value?.logo_url ?? fallback.logo_url,
+    phone_primary:
+      body.phonePrimary ??
+      body.phone_primary ??
+      body.value?.phone_primary ??
+      fallback.phone_primary,
+    phone_secondary:
+      body.phoneSecondary ??
+      body.phone_secondary ??
+      body.value?.phone_secondary ??
+      fallback.phone_secondary,
+    whatsapp_number:
+      body.whatsappNumber ??
+      body.whatsapp_number ??
+      body.value?.whatsapp_number ??
+      fallback.whatsapp_number,
+    hero_title:
+      body.heroTitle ?? body.hero_title ?? body.value?.title ?? fallback.hero_title,
     hero_background_url: heroBackgroundUrl || null
   };
 }
@@ -83,8 +126,19 @@ function toKeyValueRow(body: SiteConfigPayload) {
     value: {
       title: siteConfigRow.hero_title ?? fallback.hero_title,
       subtitle: body.value?.subtitle ?? "",
-      image_url: siteConfigRow.hero_background_url ?? ""
+      image_url: siteConfigRow.hero_background_url ?? "",
+      hero_background_url: siteConfigRow.hero_background_url ?? "",
+      logo_url: siteConfigRow.logo_url,
+      phone_primary: siteConfigRow.phone_primary,
+      phone_secondary: siteConfigRow.phone_secondary,
+      whatsapp_number: siteConfigRow.whatsapp_number
     },
+    logo_url: siteConfigRow.logo_url,
+    phone_primary: siteConfigRow.phone_primary,
+    phone_secondary: siteConfigRow.phone_secondary,
+    whatsapp_number: siteConfigRow.whatsapp_number,
+    hero_title: siteConfigRow.hero_title,
+    hero_background_url: siteConfigRow.hero_background_url,
     updated_at: new Date().toISOString()
   };
 }
@@ -98,24 +152,6 @@ export async function GET() {
     }
 
     const supabase = getSupabaseAdminClient();
-    const byIdResult = await supabase
-      .from("site_config")
-      .select("*")
-      .eq("id", 1)
-      .maybeSingle();
-
-    if (!byIdResult.error && byIdResult.data) {
-      return NextResponse.json({
-        success: true,
-        data: [byIdResult.data],
-        config: withDefaults(byIdResult.data)
-      });
-    }
-
-    if (byIdResult.error) {
-      console.warn("Erreur BDD site_config par id:", byIdResult.error.message);
-    }
-
     const byKeyResult = await supabase
       .from("site_config")
       .select("*")
@@ -130,8 +166,27 @@ export async function GET() {
       });
     }
 
-    if (byKeyResult.error) {
-      console.warn("Erreur BDD site_config par clé:", byKeyResult.error.message);
+    const byIdResult = await supabase
+      .from("site_config")
+      .select("*")
+      .eq("id", 1)
+      .maybeSingle();
+
+    if (!byIdResult.error && byIdResult.data) {
+      return NextResponse.json({
+        success: true,
+        data: [byIdResult.data],
+        config: withDefaults(byIdResult.data)
+      });
+    }
+
+    if (byKeyResult.error || byIdResult.error) {
+      console.warn(
+        "site_config fallback par défaut:",
+        [byKeyResult.error?.message, byIdResult.error?.message]
+          .filter(Boolean)
+          .join(" | ")
+      );
     }
 
     return NextResponse.json({
@@ -172,40 +227,44 @@ async function saveSiteConfig(request: Request) {
 
     const body = siteConfigSchema.parse(await request.json());
     const supabase = getSupabaseAdminClient();
-    const siteConfigRow = toSiteConfigRow(body);
-    const byIdResult = await supabase
-      .from("site_config")
-      .upsert(siteConfigRow, { onConflict: "id" })
-      .select("*")
-      .maybeSingle();
+    const keyValueRow = toKeyValueRow(body);
+    const byKeyResult = await upsertSiteConfig(
+      supabase,
+      keyValueRow,
+      "key",
+      removableKeyValueColumns
+    );
 
-    if (!byIdResult.error) {
+    if (!byKeyResult.error) {
       revalidatePath("/");
 
       return NextResponse.json({
         success: true,
-        config: withDefaults((byIdResult.data as SiteConfigRow | null) ?? siteConfigRow)
+        config: withDefaults((byKeyResult.data as SiteConfigRow | null) ?? keyValueRow),
+        data: byKeyResult.data ?? keyValueRow
       });
     }
 
-    console.warn("Echec upsert site_config par id:", byIdResult.error.message);
+    const siteConfigRow = toSiteConfigRow(body);
+    const byIdResult = await upsertSiteConfig(
+      supabase,
+      siteConfigRow,
+      "id",
+      []
+    );
 
-    const keyValueRow = toKeyValueRow(body);
-    const byKeyResult = await supabase
-      .from("site_config")
-      .upsert(keyValueRow, { onConflict: "key" })
-      .select("*")
-      .maybeSingle();
-
-    if (byKeyResult.error) {
-      console.warn("Echec upsert site_config par clé:", byKeyResult.error.message);
+    if (byIdResult.error) {
+      console.warn(
+        "site_config upsert indisponible:",
+        [byKeyResult.error.message, byIdResult.error.message].join(" | ")
+      );
 
       return NextResponse.json(
         {
           success: false,
           error:
-            byIdResult.error.message ||
             byKeyResult.error.message ||
+            byIdResult.error.message ||
             "Configuration Supabase indisponible."
         },
         { status: 400 }
@@ -216,8 +275,8 @@ async function saveSiteConfig(request: Request) {
 
     return NextResponse.json({
       success: true,
-      config: withDefaults((byKeyResult.data as SiteConfigRow | null) ?? keyValueRow),
-      data: byKeyResult.data ?? keyValueRow
+      config: withDefaults((byIdResult.data as SiteConfigRow | null) ?? siteConfigRow),
+      data: byIdResult.data ?? siteConfigRow
     });
   } catch (error) {
     const issues = getValidationIssues(error);
@@ -242,4 +301,70 @@ async function saveSiteConfig(request: Request) {
       { status: 400 }
     );
   }
+}
+
+const removableKeyValueColumns = [
+  "logo_url",
+  "phone_primary",
+  "phone_secondary",
+  "whatsapp_number",
+  "hero_title",
+  "hero_background_url",
+  "updated_at"
+] as const;
+
+async function upsertSiteConfig(
+  supabase: ReturnType<typeof getSupabaseAdminClient>,
+  payload: Record<string, unknown>,
+  onConflict: string,
+  removableColumns: readonly string[]
+) {
+  let candidate = { ...payload };
+
+  for (let attempt = 0; attempt <= removableColumns.length; attempt++) {
+    const result = await supabase
+      .from("site_config")
+      .upsert(candidate, { onConflict })
+      .select("*")
+      .maybeSingle();
+    const missingColumn = getMissingSiteConfigColumn(
+      result.error,
+      removableColumns
+    );
+
+    if (!missingColumn || !(missingColumn in candidate)) {
+      return result;
+    }
+
+    const { [missingColumn]: _removed, ...nextCandidate } = candidate;
+    candidate = nextCandidate;
+  }
+
+  return supabase
+    .from("site_config")
+    .upsert(candidate, { onConflict })
+    .select("*")
+    .maybeSingle();
+}
+
+function getMissingSiteConfigColumn(
+  error: unknown,
+  removableColumns: readonly string[]
+) {
+  if (!error || typeof error !== "object") {
+    return null;
+  }
+
+  const message = "message" in error ? String(error.message) : "";
+  const code = "code" in error ? String(error.code) : "";
+  const isSchemaCacheMiss =
+    code === "PGRST204" ||
+    message.includes("Could not find") ||
+    message.includes("schema cache");
+
+  if (!isSchemaCacheMiss) {
+    return null;
+  }
+
+  return removableColumns.find((column) => message.includes(column)) ?? null;
 }

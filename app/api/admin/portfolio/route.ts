@@ -12,12 +12,15 @@ const portfolioCreateSchema = z.object({
   category: z.string().trim().max(120).optional(),
   beforeMediaUrl: z.string().url().startsWith("https://").optional(),
   beforeUrl: z.string().url().startsWith("https://").optional(),
+  before_url: z.string().url().startsWith("https://").optional(),
   before_media_url: z.string().url().startsWith("https://").optional(),
   afterMediaUrl: z.string().url().startsWith("https://").optional(),
   afterUrl: z.string().url().startsWith("https://").optional(),
+  after_url: z.string().url().startsWith("https://").optional(),
   after_media_url: z.string().url().startsWith("https://").optional(),
-  mediaType: z.enum(["image", "video"]),
-  isPublished: z.boolean().default(true)
+  mediaType: z.enum(["image", "video"]).default("image"),
+  isPublished: z.boolean().optional(),
+  is_published: z.boolean().optional()
 }).superRefine((value, ctx) => {
   if (!getBeforeUrl(value)) {
     ctx.addIssue({
@@ -39,16 +42,20 @@ const portfolioCreateSchema = z.object({
 type PortfolioCreatePayload = z.infer<typeof portfolioCreateSchema>;
 
 export async function POST(request: Request) {
-  const admin = await getAdminAuthState();
-
-  if (!admin.isAdmin) {
-    return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
-  }
-
   try {
+    const admin = await getAdminAuthState();
+
+    if (!admin.isAdmin) {
+      return NextResponse.json(
+        { success: false, error: "Non autorisé." },
+        { status: 401 }
+      );
+    }
+
     const body = portfolioCreateSchema.parse(await request.json());
     const beforeUrl = getBeforeUrl(body);
     const afterUrl = getAfterUrl(body);
+    const isPublished = body.isPublished ?? body.is_published ?? true;
     const supabase = getSupabaseAdminClient();
     const insertPayload: PortfolioInsertPayload = {
       title: body.title || "Réalisation NVD",
@@ -57,20 +64,26 @@ export async function POST(request: Request) {
       before_media_url: beforeUrl,
       after_url: afterUrl,
       after_media_url: afterUrl,
-      is_published: body.isPublished,
+      is_published: isPublished,
       is_hero: false,
-      media_type: body.mediaType,
+      media_type: body.mediaType
     };
     const { data, error } = await insertPortfolioItem(supabase, insertPayload);
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.warn("Erreur insertion portfolio:", error.message);
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: 400 }
+      );
     }
 
     revalidatePublicPortfolio();
 
+    const item = normalizePortfolioItemResponse(data, isPublished);
+
     return NextResponse.json(
-      { item: normalizePortfolioItemResponse(data, body.isPublished) },
+      { success: true, item, data: item ? [item] : [] },
       { status: 201 }
     );
   } catch (error) {
@@ -78,12 +91,20 @@ export async function POST(request: Request) {
 
     if (issues) {
       return NextResponse.json(
-        { error: "Média invalide.", issues },
+        { success: false, error: "Média invalide.", issues },
         { status: 400 }
       );
     }
 
-    return NextResponse.json({ error: "Erreur serveur." }, { status: 500 });
+    console.warn("Exception portfolio POST:", error);
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : "Erreur serveur."
+      },
+      { status: 400 }
+    );
   }
 }
 
@@ -153,11 +174,23 @@ function getMissingOptionalPortfolioColumn(error: unknown) {
 }
 
 function getBeforeUrl(payload: Partial<PortfolioCreatePayload>) {
-  return payload.beforeMediaUrl ?? payload.beforeUrl ?? payload.before_media_url ?? "";
+  return (
+    payload.beforeMediaUrl ??
+    payload.beforeUrl ??
+    payload.before_url ??
+    payload.before_media_url ??
+    ""
+  );
 }
 
 function getAfterUrl(payload: Partial<PortfolioCreatePayload>) {
-  return payload.afterMediaUrl ?? payload.afterUrl ?? payload.after_media_url ?? "";
+  return (
+    payload.afterMediaUrl ??
+    payload.afterUrl ??
+    payload.after_url ??
+    payload.after_media_url ??
+    ""
+  );
 }
 
 function normalizePortfolioItemResponse(data: unknown, isPublished: boolean) {

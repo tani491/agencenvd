@@ -182,13 +182,16 @@ export function MediaManager({
         title,
         category,
         beforeUrl: beforeMediaUrl,
+        before_url: beforeMediaUrl,
         before_media_url: beforeMediaUrl,
         beforeMediaUrl,
         afterUrl: afterMediaUrl,
+        after_url: afterMediaUrl,
         after_media_url: afterMediaUrl,
         afterMediaUrl,
         mediaType: "image",
-        isPublished
+        isPublished,
+        is_published: isPublished
       })
     });
 
