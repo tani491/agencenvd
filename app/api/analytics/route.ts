@@ -31,22 +31,20 @@ export async function POST(request: Request) {
 
     if (error) {
       console.warn("Analytics event insert failed", error.message);
-      return new NextResponse(null, { status: 204 });
+      return NextResponse.json({ recorded: false }, { status: 200 });
     }
 
-    return new NextResponse(null, { status: 204 });
+    return NextResponse.json({ recorded: true }, { status: 200 });
   } catch (error) {
     const issues = getValidationIssues(error);
 
     if (issues) {
-      return NextResponse.json(
-        { error: "Evénement analytics invalide.", issues },
-        { status: 400 }
-      );
+      console.warn("Invalid analytics event ignored", issues);
+      return NextResponse.json({ recorded: false }, { status: 200 });
     }
 
     console.warn("Analytics route unavailable", error);
 
-    return new NextResponse(null, { status: 204 });
+    return NextResponse.json({ recorded: false }, { status: 200 });
   }
 }

@@ -282,7 +282,7 @@ function normalizePortfolioItem(row: Partial<PortfolioItem>): PortfolioItem {
     before_media_url: row.before_media_url ?? "",
     after_media_url: row.after_media_url ?? "",
     media_type: row.media_type === "video" ? "video" : "image",
-    is_published: row.is_published ?? false
+    is_published: row.is_published ?? true
   };
 }
 
