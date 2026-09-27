@@ -63,6 +63,8 @@ export type SiteConfig = {
 export type AnalyticsSummary = {
   totalPageViews: number;
   uniqueVisitors: number;
+  whatsappClicks: number;
+  phoneCalls: number;
   totalQuotes: number;
   convertedQuotes: number;
   quoteConversionRate: number;
@@ -137,7 +139,7 @@ export async function getAdminSiteConfig() {
     const keyedResult = await supabase
       .from("site_config")
       .select("*")
-      .in("key", ["hero_section", "site_logo"]);
+      .in("key", ["hero_section", "site_logo", "contact_info"]);
 
     if (!keyedResult.error && keyedResult.data?.length) {
       return normalizeSiteConfigKeyRows(keyedResult.data);
@@ -237,6 +239,8 @@ export function buildAnalyticsSummary(
   return {
     totalPageViews: audience.totalPageViews,
     uniqueVisitors: audience.uniqueVisitors,
+    whatsappClicks: 0,
+    phoneCalls: 0,
     totalQuotes: quotes.length,
     convertedQuotes,
     quoteConversionRate:
@@ -400,14 +404,17 @@ function normalizeSiteConfigKeyRows(rows: unknown[]): SiteConfig {
       phone_primary:
         row.phone_primary ||
         asOptionalString(value.phone_primary) ||
+        asOptionalString(value.phonePrimary) ||
         config.phone_primary,
       phone_secondary:
         row.phone_secondary ||
         asOptionalString(value.phone_secondary) ||
+        asOptionalString(value.phoneSecondary) ||
         config.phone_secondary,
       whatsapp_number:
         row.whatsapp_number ||
         asOptionalString(value.whatsapp_number) ||
+        asOptionalString(value.whatsappNumber) ||
         config.whatsapp_number,
       hero_title:
         row.hero_title || asOptionalString(value.title) || config.hero_title,

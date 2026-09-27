@@ -1,5 +1,7 @@
 "use client";
 
+import type { ComponentType } from "react";
+import Link from "next/link";
 import {
   Bar,
   BarChart,
@@ -12,19 +14,75 @@ import {
   XAxis,
   YAxis
 } from "recharts";
+import {
+  ImagePlus,
+  MessageCircle,
+  MessageSquareQuote,
+  Phone,
+  Settings,
+  Users
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { AnalyticsSummary } from "@/lib/admin/data";
 
 const chartColors = ["#0072CE", "#00C4FF", "#10B981", "#0F2C59", "#F59E0B"];
 
-export function AnalyticsCharts({ summary }: { summary: AnalyticsSummary }) {
+export function AnalyticsCharts({
+  summary,
+  variant = "full"
+}: {
+  summary: AnalyticsSummary;
+  variant?: "dashboard" | "full";
+}) {
+  if (variant === "dashboard") {
+    return (
+      <div className="grid gap-5">
+        <div className="grid gap-4 sm:grid-cols-3">
+          <MetricCard
+            label="Visiteurs uniques"
+            value={summary.uniqueVisitors.toString()}
+            icon={Users}
+          />
+          <MetricCard
+            label="Clics WhatsApp"
+            value={summary.whatsappClicks.toString()}
+            icon={MessageCircle}
+          />
+          <MetricCard
+            label="Appels téléphoniques"
+            value={summary.phoneCalls.toString()}
+            icon={Phone}
+          />
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-3">
+          <ShortcutCard
+            href="/admin/dashboard/media"
+            label="CMS Médias"
+            description="Hero, portfolio et réalisations avant/après"
+            icon={ImagePlus}
+          />
+          <ShortcutCard
+            href="/admin/dashboard/testimonials"
+            label="Témoignages"
+            description="Avis clients affichés sur la vitrine"
+            icon={MessageSquareQuote}
+          />
+          <ShortcutCard
+            href="/admin/dashboard/settings"
+            label="Paramètres"
+            description="Logo, contacts et sécurité admin"
+            icon={Settings}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="grid gap-5">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <MetricCard
-          label="Visiteurs uniques"
-          value={summary.uniqueVisitors.toString()}
-        />
+        <MetricCard label="Visiteurs uniques" value={summary.uniqueVisitors.toString()} />
         <MetricCard
           label="Vues de pages"
           value={summary.totalPageViews.toString()}
@@ -129,13 +187,53 @@ export function AnalyticsCharts({ summary }: { summary: AnalyticsSummary }) {
   );
 }
 
-function MetricCard({ label, value }: { label: string; value: string }) {
+function MetricCard({
+  label,
+  value,
+  icon: Icon
+}: {
+  label: string;
+  value: string;
+  icon?: ComponentType<{ className?: string }>;
+}) {
   return (
     <Card>
       <CardContent className="p-5">
-        <div className="text-sm font-semibold text-muted-foreground">{label}</div>
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-sm font-semibold text-muted-foreground">{label}</div>
+          {Icon && (
+            <div className="grid h-9 w-9 place-items-center rounded-lg bg-cyan-50 text-nvd-blue-primary">
+              <Icon className="h-4 w-4" />
+            </div>
+          )}
+        </div>
         <div className="mt-2 text-3xl font-black text-nvd-blue-dark">{value}</div>
       </CardContent>
     </Card>
+  );
+}
+
+function ShortcutCard({
+  href,
+  label,
+  description,
+  icon: Icon
+}: {
+  href: string;
+  label: string;
+  description: string;
+  icon: ComponentType<{ className?: string }>;
+}) {
+  return (
+    <Link
+      href={href}
+      className="rounded-lg border bg-white p-5 shadow-sm transition hover:border-nvd-cyan hover:shadow-md"
+    >
+      <div className="grid h-11 w-11 place-items-center rounded-lg bg-nvd-blue-primary text-white">
+        <Icon className="h-5 w-5" />
+      </div>
+      <div className="mt-4 font-black text-nvd-blue-dark">{label}</div>
+      <p className="mt-2 text-sm leading-6 text-muted-foreground">{description}</p>
+    </Link>
   );
 }

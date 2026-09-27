@@ -19,9 +19,13 @@ export async function POST(request: Request) {
     const payload = analyticsEventSchema.parse(await request.json());
     const userAgent = request.headers.get("user-agent") ?? null;
     const supabase = getSupabaseAdminClient();
-    const { error } = await supabase.from("analytics_events").insert({
+    const normalizedPath = payload.path.startsWith("/")
+      ? payload.path
+      : `/${payload.path}`;
+    const { error } = await insertAnalyticsEvent(supabase, {
       visitor_id: payload.visitorId,
-      path: payload.path.startsWith("/") ? payload.path : `/${payload.path}`,
+      path: normalizedPath,
+      page_path: normalizedPath,
       referrer_url: payload.referrer || null,
       utm_source: payload.utmSource || "direct",
       utm_medium: payload.utmMedium || null,
@@ -30,7 +34,10 @@ export async function POST(request: Request) {
     });
 
     if (error) {
-      console.warn("Analytics event insert failed", error.message);
+      if (!isMissingOptionalAnalyticsColumn(error)) {
+        console.warn("Analytics event insert failed", error.message);
+      }
+
       return NextResponse.json({ recorded: false }, { status: 200 });
     }
 
@@ -47,4 +54,56 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ recorded: false }, { status: 200 });
   }
+}
+
+async function insertAnalyticsEvent(
+  supabase: ReturnType<typeof getSupabaseAdminClient>,
+  payload: Record<string, unknown>
+) {
+  const { page_path: _pagePath, ...pathPayload } = payload;
+  const firstResult = await supabase.from("analytics_events").insert(pathPayload);
+
+  if (!isMissingOptionalAnalyticsColumn(firstResult.error)) {
+    return firstResult;
+  }
+
+  const { path: _path, ...pagePathPayload } = payload;
+  const secondResult = await supabase.from("analytics_events").insert(pagePathPayload);
+
+  if (!isMissingOptionalAnalyticsColumn(secondResult.error)) {
+    return secondResult;
+  }
+
+  const {
+    path: _removedPath,
+    page_path: _removedPagePath,
+    referrer_url: _removedReferrerUrl,
+    utm_source: _removedUtmSource,
+    utm_medium: _removedUtmMedium,
+    utm_campaign: _removedUtmCampaign,
+    user_agent: _removedUserAgent,
+    ...minimalPayload
+  } = payload;
+
+  return supabase.from("analytics_events").insert(minimalPayload);
+}
+
+function isMissingOptionalAnalyticsColumn(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const message = "message" in error ? String(error.message) : "";
+  const code = "code" in error ? String(error.code) : "";
+
+  return (
+    code === "PGRST204" ||
+    message.includes("path") ||
+    message.includes("page_path") ||
+    message.includes("referrer_url") ||
+    message.includes("utm_source") ||
+    message.includes("utm_medium") ||
+    message.includes("utm_campaign") ||
+    message.includes("user_agent")
+  );
 }

@@ -51,8 +51,11 @@ type SiteConfigRow = Partial<SiteConfig> & {
     image_url?: string | null;
     logo_url?: string | null;
     phone_primary?: string | null;
+    phonePrimary?: string | null;
     phone_secondary?: string | null;
+    phoneSecondary?: string | null;
     whatsapp_number?: string | null;
+    whatsappNumber?: string | null;
   } | null;
 };
 
@@ -67,12 +70,19 @@ function withDefaults(row?: SiteConfigRow | null): SiteConfig {
     id: typeof row.id === "number" ? row.id : fallback.id,
     logo_url: row.logo_url || row.value?.logo_url || fallback.logo_url,
     phone_primary:
-      row.phone_primary || row.value?.phone_primary || fallback.phone_primary,
+      row.phone_primary ||
+      row.value?.phone_primary ||
+      row.value?.phonePrimary ||
+      fallback.phone_primary,
     phone_secondary:
-      row.phone_secondary || row.value?.phone_secondary || fallback.phone_secondary,
+      row.phone_secondary ||
+      row.value?.phone_secondary ||
+      row.value?.phoneSecondary ||
+      fallback.phone_secondary,
     whatsapp_number:
       row.whatsapp_number ||
       row.value?.whatsapp_number ||
+      row.value?.whatsappNumber ||
       fallback.whatsapp_number,
     hero_title: row.hero_title ?? row.value?.title ?? fallback.hero_title,
     hero_background_url:
@@ -182,7 +192,7 @@ export async function GET() {
     const byKeyResult = await supabase
       .from("site_config")
       .select("*")
-      .in("key", ["hero_section", "site_logo"]);
+      .in("key", ["hero_section", "site_logo", "contact_info"]);
 
     if (!byKeyResult.error && byKeyResult.data?.length) {
       const keyRows = byKeyResult.data as SiteConfigRow[];

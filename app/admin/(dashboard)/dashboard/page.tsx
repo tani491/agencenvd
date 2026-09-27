@@ -1,18 +1,11 @@
 import { AnalyticsCharts } from "@/components/admin/AnalyticsCharts";
-import {
-  buildAnalyticsSummary,
-  getAdminQuotes,
-  getAudienceSummary
-} from "@/lib/admin/data";
+import { buildAnalyticsSummary, getAudienceSummary } from "@/lib/admin/data";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminDashboardPage() {
-  const [quotes, audience] = await Promise.all([
-    getAdminQuotes(),
-    getAudienceSummary()
-  ]);
-  const summary = buildAnalyticsSummary(quotes, audience);
+  const audience = await getAudienceSummary();
+  const summary = buildAnalyticsSummary([], audience);
 
   return (
     <div className="grid gap-6">
@@ -24,12 +17,12 @@ export default async function AdminDashboardPage() {
           Analytics & performance commerciale
         </h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
-          Suivez les visites, les demandes de devis et la conversion réelle du
-          site NVD.
+          Suivez les visites principales et accédez rapidement aux modules de
+          contenu de la vitrine NVD.
         </p>
       </header>
 
-      <AnalyticsCharts summary={summary} />
+      <AnalyticsCharts summary={summary} variant="dashboard" />
     </div>
   );
 }

@@ -45,15 +45,13 @@ export async function getPublicSiteConfig(): Promise<PublicSiteConfig> {
       }
     });
 
-    const [directConfig, keyedConfig] = await Promise.all([
-      loadDirectSiteConfig(supabase),
-      loadKeyedSiteConfig(supabase)
-    ]);
+    const keyedConfig = await loadKeyedSiteConfig(supabase);
 
-    return withPublicDefaults({
-      ...directConfig,
-      ...keyedConfig
-    });
+    if (keyedConfig) {
+      return withPublicDefaults(keyedConfig);
+    }
+
+    return withPublicDefaults(await loadDirectSiteConfig(supabase));
   } catch (error) {
     console.warn("Public site config unavailable", error);
     return fallbackSiteConfig;
@@ -84,7 +82,7 @@ async function loadKeyedSiteConfig(
   const { data, error } = await supabase
     .from("site_config")
     .select("*")
-    .in("key", ["hero_section", "site_logo"]);
+    .in("key", ["hero_section", "site_logo", "contact_info"]);
 
   if (error || !data?.length) {
     return null;
@@ -102,6 +100,24 @@ async function loadKeyedSiteConfig(
           asOptionalString(value.logo_url) ||
           asOptionalString(value.image_url) ||
           config.logo_url
+      };
+    }
+
+    if (siteConfigRow.key === "contact_info") {
+      return {
+        ...config,
+        phone_primary:
+          asOptionalString(value.phone_primary) ||
+          asOptionalString(value.phonePrimary) ||
+          config.phone_primary,
+        phone_secondary:
+          asOptionalString(value.phone_secondary) ||
+          asOptionalString(value.phoneSecondary) ||
+          config.phone_secondary,
+        whatsapp_number:
+          asOptionalString(value.whatsapp_number) ||
+          asOptionalString(value.whatsappNumber) ||
+          config.whatsapp_number
       };
     }
 

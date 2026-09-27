@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { Droplets, ShieldAlert } from "lucide-react";
+import { Droplets, Menu, ShieldAlert } from "lucide-react";
 import { AdminNav } from "@/components/admin/AdminNav";
 import { LogoutButton } from "@/components/admin/LogoutButton";
 import { getAdminAuthState } from "@/lib/admin/auth";
@@ -49,8 +49,39 @@ export default async function DashboardLayout({
 
   return (
     <main className="min-h-screen bg-slate-100 text-slate-950">
-      <div className="grid min-h-screen lg:grid-cols-[280px_1fr]">
-        <aside className="border-r bg-white">
+      <div className="sticky top-0 z-40 border-b bg-white shadow-sm lg:hidden">
+        <details className="group">
+          <summary className="flex h-16 cursor-pointer list-none items-center justify-between gap-3 px-4 [&::-webkit-details-marker]:hidden">
+            <div className="flex items-center gap-3">
+              <div className="grid h-10 w-10 place-items-center rounded-lg bg-nvd-blue-primary text-white">
+                <Droplets className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="font-black text-nvd-blue-dark">NVD Admin</div>
+                <div className="text-xs text-muted-foreground">CRM & CMS</div>
+              </div>
+            </div>
+            <span className="grid h-10 w-10 place-items-center rounded-lg border text-nvd-blue-dark">
+              <Menu className="h-5 w-5" />
+            </span>
+          </summary>
+          <div className="grid gap-4 border-t bg-white p-4 shadow-lg">
+            <AdminNav />
+            <div className="grid gap-3 rounded-lg border bg-slate-50 p-3">
+              <div className="text-xs font-semibold text-muted-foreground">
+                Connecté en tant que
+              </div>
+              <div className="truncate text-sm font-bold text-nvd-blue-dark">
+                {admin.email}
+              </div>
+              <LogoutButton />
+            </div>
+          </div>
+        </details>
+      </div>
+
+      <div className="grid min-h-[calc(100vh-4rem)] lg:min-h-screen lg:grid-cols-[280px_1fr]">
+        <aside className="hidden border-r bg-white lg:block">
           <div className="sticky top-0 flex h-auto flex-col p-5 lg:h-screen">
             <div className="mb-8 flex items-center gap-3">
               <div className="grid h-11 w-11 place-items-center rounded-lg bg-nvd-blue-primary text-white">
@@ -73,7 +104,9 @@ export default async function DashboardLayout({
             </div>
           </div>
         </aside>
-        <section className="min-w-0 px-4 py-6 sm:px-6 lg:px-8">{children}</section>
+        <section className="min-w-0 px-4 py-6 pb-24 sm:px-6 lg:px-8 lg:pb-6">
+          {children}
+        </section>
       </div>
     </main>
   );

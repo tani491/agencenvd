@@ -198,12 +198,12 @@ export function QuoteForm({ whatsappNumber }: { whatsappNumber: string }) {
         )}
       </div>
 
-      <label className="grid min-w-0 gap-2 text-sm font-semibold">
+      <label className="grid w-full max-w-full min-w-0 gap-2 overflow-hidden text-sm font-semibold">
         Date souhaitée
-        <span className="relative block w-full min-w-0">
+        <span className="relative block w-full max-w-full min-w-0 overflow-hidden">
           <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            className="w-full min-w-0 pl-10"
+            className="box-border w-full max-w-full min-w-0 overflow-hidden rounded-lg pl-10"
             type="date"
             min={new Date().toISOString().slice(0, 10)}
             {...register("preferredDate")}
