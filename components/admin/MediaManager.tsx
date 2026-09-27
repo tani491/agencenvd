@@ -181,7 +181,11 @@ export function MediaManager({
       body: JSON.stringify({
         title,
         category,
+        beforeUrl: beforeMediaUrl,
+        before_media_url: beforeMediaUrl,
         beforeMediaUrl,
+        afterUrl: afterMediaUrl,
+        after_media_url: afterMediaUrl,
         afterMediaUrl,
         mediaType: "image",
         isPublished
